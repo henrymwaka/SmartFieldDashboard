@@ -3,29 +3,61 @@
 <head>
     <title>SmartField Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .trait-box {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .✔️ { background-color: #d4edda; }
+        .⏳ { background-color: #fff3cd; }
+        .❌ { background-color: #f8d7da; }
+        .🕓 { background-color: #e2e3e5; }
+        .legend { margin-top: 10px; }
+        .legend span { margin-right: 15px; }
+    </style>
 </head>
 <body>
 {% load filters %}
-
 <h1>SmartField Supervisor Dashboard</h1>
-<a href="/upload/">Upload SmartField CSV</a>
+<a href="/upload/">Upload SmartField CSV</a> |
+<a href="/upload-schedule/">Upload Trait Schedule</a>
 
 {% if headers %}
   <h2>Data Preview</h2>
   <table border="1">
-    <tr>
-      {% for header in headers %}
-        <th>{{ header }}</th>
-      {% endfor %}
-    </tr>
+    <tr>{% for header in headers %}<th>{{ header }}</th>{% endfor %}</tr>
     {% for row in data %}
+      <tr>{% for header in headers %}<td>{{ row|get_item:header }}</td>{% endfor %}</tr>
+    {% endfor %}
+  </table>
+
+  <h2>Trait Status by Plot</h2>
+  <table border="1">
+    <tr>
+      <th>Plant ID</th>
+      {% for trait in trait_flags.values.0.keys %}<th>{{ trait }}</th>{% endfor %}
+    </tr>
+    {% for pid, flags in trait_flags.items %}
       <tr>
-        {% for header in headers %}
-          <td>{{ row|get_item:header }}</td>
+        <td>{{ pid }}</td>
+        {% for trait, status in flags.items %}
+          <td><span class="trait-box {{ status }}">{{ status }}</span></td>
         {% endfor %}
       </tr>
     {% endfor %}
   </table>
+
+  <div class="legend">
+    <strong>Legend:</strong>
+    <span class="trait-box ✔️">✔️ Completed</span>
+    <span class="trait-box ⏳">⏳ Due Soon</span>
+    <span class="trait-box ❌">❌ Overdue</span>
+    <span class="trait-box 🕓">🕓 Too Early</span>
+  </div>
 
   <h2>Trait Completeness per Plot</h2>
   <canvas id="plotChart" width="800" height="400"></canvas>
@@ -37,12 +69,10 @@
     const plotLabels = {{ plot_labels|safe }};
     const plotData = {{ plot_data|safe }};
     const plotColors = {{ plot_colors|safe }};
-
     const summaryLabels = ["Complete", "Incomplete", "Empty"];
     const summaryData = {{ summary_data|safe }};
 
-    const ctx1 = document.getElementById('plotChart').getContext('2d');
-    new Chart(ctx1, {
+    new Chart(document.getElementById('plotChart').getContext('2d'), {
       type: 'bar',
       data: {
         labels: plotLabels,
@@ -64,8 +94,7 @@
       }
     });
 
-    const ctx2 = document.getElementById('summaryChart').getContext('2d');
-    new Chart(ctx2, {
+    new Chart(document.getElementById('summaryChart').getContext('2d'), {
       type: 'doughnut',
       data: {
         labels: summaryLabels,

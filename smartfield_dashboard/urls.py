@@ -6,4 +6,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.index, name='index'),
     path('upload/', views.upload_csv, name='upload_csv'),
+    path('upload-schedule/', views.upload_schedule_csv, name='upload_schedule'),
 ]
