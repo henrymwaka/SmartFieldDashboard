@@ -1,17 +1,88 @@
 <!DOCTYPE html>
 <html>
-<head><title>SmartField Dashboard</title></head>
+<head>
+    <title>SmartField Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
 <body>
+{% load filters %}
+
 <h1>SmartField Supervisor Dashboard</h1>
 <a href="/upload/">Upload SmartField CSV</a>
+
 {% if headers %}
   <h2>Data Preview</h2>
   <table border="1">
-    <tr>{% for header in headers %}<th>{{ header }}</th>{% endfor %}</tr>
+    <tr>
+      {% for header in headers %}
+        <th>{{ header }}</th>
+      {% endfor %}
+    </tr>
     {% for row in data %}
-      <tr>{% for header in headers %}<td>{{ row|get_item:header }}</td>{% endfor %}</tr>
+      <tr>
+        {% for header in headers %}
+          <td>{{ row|get_item:header }}</td>
+        {% endfor %}
+      </tr>
     {% endfor %}
   </table>
+
+  <h2>Trait Completeness per Plot</h2>
+  <canvas id="plotChart" width="800" height="400"></canvas>
+
+  <h2>Summary of Plot Completion</h2>
+  <canvas id="summaryChart" width="400" height="400"></canvas>
+
+  <script>
+    const plotLabels = {{ plot_labels|safe }};
+    const plotData = {{ plot_data|safe }};
+    const plotColors = {{ plot_colors|safe }};
+
+    const summaryLabels = ["Complete", "Incomplete", "Empty"];
+    const summaryData = {{ summary_data|safe }};
+
+    const ctx1 = document.getElementById('plotChart').getContext('2d');
+    new Chart(ctx1, {
+      type: 'bar',
+      data: {
+        labels: plotLabels,
+        datasets: [{
+          label: 'Completed Traits',
+          data: plotData,
+          backgroundColor: plotColors
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: 'Per-Plot Trait Completeness' }
+        },
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    const ctx2 = document.getElementById('summaryChart').getContext('2d');
+    new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: summaryLabels,
+        datasets: [{
+          label: 'Plot Status',
+          data: summaryData,
+          backgroundColor: ['green', 'orange', 'red']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: { display: true, text: 'Plot Completion Summary' }
+        }
+      }
+    });
+  </script>
 {% endif %}
 </body>
 </html>
