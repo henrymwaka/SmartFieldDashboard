@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head><title>SmartField Dashboard</title></head>
+<body>
+<h1>SmartField Supervisor Dashboard</h1>
+<a href="/upload/">Upload SmartField CSV</a>
+{% if headers %}
+  <h2>Data Preview</h2>
+  <table border="1">
+    <tr>{% for header in headers %}<th>{{ header }}</th>{% endfor %}</tr>
+    {% for row in data %}
+      <tr>{% for header in headers %}<td>{{ row|get_item:header }}</td>{% endfor %}</tr>
+    {% endfor %}
+  </table>
+{% endif %}
+</body>
+</html>
