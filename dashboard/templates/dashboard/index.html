@@ -11,6 +11,7 @@
             font-size: 16px;
             border: 1px solid #ccc;
             border-radius: 4px;
+            cursor: pointer;
         }
         .✔️ { background-color: #d4edda; }
         .⏳ { background-color: #fff3cd; }
@@ -18,37 +19,112 @@
         .🕓 { background-color: #e2e3e5; }
         .legend { margin-top: 10px; }
         .legend span { margin-right: 15px; }
+        button {
+            padding: 6px 12px;
+            margin: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .summary-row td {
+            font-weight: bold;
+            background-color: #f1f1f1;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 {% load filters %}
+<!-- Page title -->
 <h1>SmartField Supervisor Dashboard</h1>
-<a href="/upload/">Upload SmartField CSV</a> |
-<a href="/upload-schedule/">Upload Trait Schedule</a>
+
+{% if user.is_authenticated %}
+  <p>Logged in as {{ user.username }} | <a href="{% url 'logout' %}">Logout</a></p>
+{% endif %}
+
+<!-- Upload and download buttons -->
+<div style="margin: 10px 0;">
+  <a href="/upload/"><button>📤 Upload SmartField CSV</button></a>
+  <a href="/upload-schedule/"><button>🗓️ Upload Trait Schedule</button></a>
+  {% if headers %}
+  <form method="get" action="/export/" style="display:inline;">
+    <button type="submit">📥 Download Trait Status CSV</button>
+  </form>
+  {% endif %}
+</div>
 
 {% if headers %}
-  <h2>Data Preview</h2>
-  <table border="1">
-    <tr>{% for header in headers %}<th>{{ header }}</th>{% endfor %}</tr>
-    {% for row in data %}
-      <tr>{% for header in headers %}<td>{{ row|get_item:header }}</td>{% endfor %}</tr>
+  <!-- Trait filtering dropdown -->
+<label for="traitFilter">Filter by Trait:</label>
+  <select id="traitFilter" onchange="filterTraitTable()">
+    <option value="">-- Show All --</option>
+    {% for trait in trait_flags|get_first_value_keys %}
+      <option value="{{ trait }}">{{ trait }}</option>
     {% endfor %}
-  </table>
+  </select>
 
-  <h2>Trait Status by Plot</h2>
-  <table border="1">
+  <!-- Table showing individual plant trait statuses -->
+<h2>Trait Status by Plot</h2>
+  <table id="traitTable" border="1">
     <tr>
       <th>Plant ID</th>
-      {% for trait in trait_flags.values.0.keys %}<th>{{ trait }}</th>{% endfor %}
+      {% for trait in trait_flags|get_first_value_keys %}
+        <th class="trait-col" data-trait="{{ trait }}">{{ trait }}</th>
+      {% endfor %}
     </tr>
     {% for pid, flags in trait_flags.items %}
-      <tr>
+      <tr onclick="openModal('{{ pid }}')">
         <td>{{ pid }}</td>
         {% for trait, status in flags.items %}
-          <td><span class="trait-box {{ status }}">{{ status }}</span></td>
+          <td class="trait-col" data-trait="{{ trait }}">
+            <span class="trait-box {{ status }}" title="Due: {{ trait_due_dates|get_item:pid|get_item:trait }}">
+              {{ status }}
+            </span>
+          </td>
         {% endfor %}
       </tr>
     {% endfor %}
+    {% if trait_summary %}
+    <tr class="summary-row">
+      <td>Summary</td>
+      {% for trait in trait_flags|get_first_value_keys %}
+        <td>
+          ✔️ {{ trait_summary|get_nested:trait|get_item:"✔️" }},
+          ⏳ {{ trait_summary|get_nested:trait|get_item:"⏳" }},
+          ❌ {{ trait_summary|get_nested:trait|get_item:"❌" }},
+          🕓 {{ trait_summary|get_nested:trait|get_item:"🕓" }}
+        </td>
+      {% endfor %}
+    </tr>
+    {% endif %}
   </table>
 
   <div class="legend">
@@ -59,10 +135,31 @@
     <span class="trait-box 🕓">🕓 Too Early</span>
   </div>
 
-  <h2>Trait Completeness per Plot</h2>
+  <!-- Modal popup for editing plant traits -->
+<div id="modal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h3>Edit Trait Values for Plant: <span id="modalTitle"></span></h3>
+      <form id="editForm">
+        <table id="editTable" border="1">
+          <tr>
+            <th>Trait</th>
+            <th>Status</th>
+            <th>New Value</th>
+            <th>History</th>
+          </tr>
+        </table>
+        <button type="submit">💾 Save Changes</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Bar chart of per-plot trait completion -->
+<h2>Trait Completeness per Plot</h2>
   <canvas id="plotChart" width="800" height="400"></canvas>
 
-  <h2>Summary of Plot Completion</h2>
+  <!-- Doughnut chart summarizing plot completion -->
+<h2>Summary of Plot Completion</h2>
   <canvas id="summaryChart" width="400" height="400"></canvas>
 
   <script>
@@ -71,6 +168,7 @@
     const plotColors = {{ plot_colors|safe }};
     const summaryLabels = ["Complete", "Incomplete", "Empty"];
     const summaryData = {{ summary_data|safe }};
+    const rawTraitData = {{ trait_flags|safe }};
 
     new Chart(document.getElementById('plotChart').getContext('2d'), {
       type: 'bar',
@@ -111,6 +209,73 @@
         }
       }
     });
+
+    function filterTraitTable() {
+      const selectedTrait = document.getElementById("traitFilter").value;
+      const cols = document.querySelectorAll(".trait-col");
+      cols.forEach(col => {
+        col.style.display = (!selectedTrait || col.dataset.trait === selectedTrait) ? '' : 'none';
+      });
+    }
+
+    function openModal(plantId) {
+      document.getElementById("modal").style.display = "block";
+      document.getElementById("modalTitle").innerText = plantId;
+
+      const traitData = rawTraitData[plantId];
+      const table = document.getElementById("editTable");
+      table.innerHTML = '<tr><th>Trait</th><th>Status</th><th>New Value</th><th>History</th></tr>';
+
+      for (let trait in traitData) {
+        const row = table.insertRow(-1);
+        row.insertCell(0).innerText = trait;
+        row.insertCell(1).innerText = traitData[trait];
+        const input = document.createElement("input");
+        input.type = "text";
+        input.name = trait;
+        row.insertCell(2).appendChild(input);
+        const historyCell = row.insertCell(3);
+        historyCell.innerText = "⏳ Loading...";
+
+        fetch(`/history/${plantId}/`)
+          .then(resp => resp.json())
+          .then(data => {
+            const hist = data.traits[trait] || [];
+            historyCell.innerHTML = hist.length
+              ? hist.map(h => `<div>${h.value} <small>(${h.timestamp}, ${h.user})</small></div>`).join('')
+              : "—";
+          })
+          .catch(() => {
+            historyCell.innerText = "⚠️ Error";
+          });
+      }
+    }
+
+    function closeModal() {
+      document.getElementById("modal").style.display = "none";
+    }
+
+    document.getElementById("editForm").onsubmit = async function(e) {
+      e.preventDefault();
+      const plantId = document.getElementById("modalTitle").innerText;
+      const formData = new FormData(this);
+      const edits = { [plantId]: {} };
+      for (const [key, value] of formData.entries()) {
+        if (value.trim()) {
+          edits[plantId][key] = value.trim();
+        }
+      }
+
+      const response = await fetch("/save-edits/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+        body: JSON.stringify({ edits })
+      });
+
+      const result = await response.json();
+      alert(result.status === "success" ? "✅ Saved!" : "❌ Failed: " + result.message);
+      if (result.status === "success") location.reload();
+    };
   </script>
 {% endif %}
 </body>
