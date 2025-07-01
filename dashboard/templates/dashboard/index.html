@@ -63,14 +63,12 @@
 </head>
 <body>
 {% load filters %}
-<!-- Page title -->
 <h1>SmartField Supervisor Dashboard</h1>
 
 {% if user.is_authenticated %}
   <p>Logged in as {{ user.username }} | <a href="{% url 'logout' %}">Logout</a></p>
 {% endif %}
 
-<!-- Upload and download buttons -->
 <div style="margin: 10px 0;">
   <a href="/upload/"><button>📤 Upload SmartField CSV</button></a>
   <a href="/upload-schedule/"><button>🗓️ Upload Trait Schedule</button></a>
@@ -82,8 +80,7 @@
 </div>
 
 {% if headers %}
-  <!-- Trait filtering dropdown -->
-<label for="traitFilter">Filter by Trait:</label>
+  <label for="traitFilter">Filter by Trait:</label>
   <select id="traitFilter" onchange="filterTraitTable()">
     <option value="">-- Show All --</option>
     {% for trait in trait_flags|get_first_value_keys %}
@@ -91,28 +88,29 @@
     {% endfor %}
   </select>
 
-  <!-- Table showing individual plant trait statuses -->
-<h2>Trait Status by Plot</h2>
-  <table id="traitTable" border="1">
-    <tr>
-      <th>Plant ID</th>
-      {% for trait in trait_flags|get_first_value_keys %}
-        <th class="trait-col" data-trait="{{ trait }}">{{ trait }}</th>
+ <h2>Trait Status by Plot</h2>
+<table id="traitTable" border="1">
+  <tr>
+    <th>Plant ID</th>
+    {% for trait in trait_flags|get_first_value_keys %}
+      <th class="trait-col" data-trait="{{ trait }}">{{ trait }}</th>
+    {% endfor %}
+  </tr>
+  {% for pid, flags in trait_flags.items %}
+    <tr onclick="openModal('{{ pid }}')">
+      <td><a href="{% url 'plant_snapshot' pid %}" style="text-decoration:none;">{{ pid }}</a></td>
+      {% for trait, status in flags.items %}
+        <td class="trait-col" data-trait="{{ trait }}">
+          <span class="trait-box {{ status }}" title="Due: {{ trait_due_dates|get_item:pid|get_item:trait }}">
+            {{ status }}
+          </span>
+        </td>
       {% endfor %}
     </tr>
-    {% for pid, flags in trait_flags.items %}
-      <tr onclick="openModal('{{ pid }}')">
-        <td>{{ pid }}</td>
-        {% for trait, status in flags.items %}
-          <td class="trait-col" data-trait="{{ trait }}">
-            <span class="trait-box {{ status }}" title="Due: {{ trait_due_dates|get_item:pid|get_item:trait }}">
-              {{ status }}
-            </span>
-          </td>
-        {% endfor %}
+  {% endfor %}
+
       </tr>
-    {% endfor %}
-    {% if trait_summary %}
+        {% if trait_summary %}
     <tr class="summary-row">
       <td>Summary</td>
       {% for trait in trait_flags|get_first_value_keys %}
@@ -135,8 +133,8 @@
     <span class="trait-box 🕓">🕓 Too Early</span>
   </div>
 
-  <!-- Modal popup for editing plant traits -->
-<div id="modal" class="modal">
+  <!-- Modal for editing traits -->
+  <div id="modal" class="modal">
     <div class="modal-content">
       <span class="close" onclick="closeModal()">&times;</span>
       <h3>Edit Trait Values for Plant: <span id="modalTitle"></span></h3>
@@ -146,7 +144,6 @@
             <th>Trait</th>
             <th>Status</th>
             <th>New Value</th>
-            <th>History</th>
           </tr>
         </table>
         <button type="submit">💾 Save Changes</button>
@@ -154,12 +151,10 @@
     </div>
   </div>
 
-  <!-- Bar chart of per-plot trait completion -->
-<h2>Trait Completeness per Plot</h2>
+  <h2>Trait Completeness per Plot</h2>
   <canvas id="plotChart" width="800" height="400"></canvas>
 
-  <!-- Doughnut chart summarizing plot completion -->
-<h2>Summary of Plot Completion</h2>
+  <h2>Summary of Plot Completion</h2>
   <canvas id="summaryChart" width="400" height="400"></canvas>
 
   <script>
@@ -224,7 +219,7 @@
 
       const traitData = rawTraitData[plantId];
       const table = document.getElementById("editTable");
-      table.innerHTML = '<tr><th>Trait</th><th>Status</th><th>New Value</th><th>History</th></tr>';
+      table.innerHTML = '<tr><th>Trait</th><th>Status</th><th>New Value</th></tr>';
 
       for (let trait in traitData) {
         const row = table.insertRow(-1);
@@ -234,20 +229,6 @@
         input.type = "text";
         input.name = trait;
         row.insertCell(2).appendChild(input);
-        const historyCell = row.insertCell(3);
-        historyCell.innerText = "⏳ Loading...";
-
-        fetch(`/history/${plantId}/`)
-          .then(resp => resp.json())
-          .then(data => {
-            const hist = data.traits[trait] || [];
-            historyCell.innerHTML = hist.length
-              ? hist.map(h => `<div>${h.value} <small>(${h.timestamp}, ${h.user})</small></div>`).join('')
-              : "—";
-          })
-          .catch(() => {
-            historyCell.innerText = "⚠️ Error";
-          });
       }
     }
 
@@ -276,6 +257,37 @@
       alert(result.status === "success" ? "✅ Saved!" : "❌ Failed: " + result.message);
       if (result.status === "success") location.reload();
     };
+
+    // 🔍 Dynamic Trait History on Click
+    async function fetchTraitHistory(plantId, trait, targetRow) {
+      const res = await fetch(`/plant-history/${plantId}`);
+      const json = await res.json();
+      const history = (json.traits && json.traits[trait]) || [];
+      const existing = document.getElementById("history-row");
+      if (existing) existing.remove();
+
+      const historyRow = document.createElement("tr");
+      historyRow.id = "history-row";
+      const cell = document.createElement("td");
+      cell.colSpan = 3;
+      cell.innerHTML = "<strong>History:</strong><br>" + (
+        history.length
+          ? history.map(h => `${h.value} by ${h.user} at ${h.timestamp}`).join("<br>")
+          : "No history"
+      );
+      cell.style.background = "#f8f9fa";
+      historyRow.appendChild(cell);
+      targetRow.parentNode.insertBefore(historyRow, targetRow.nextSibling);
+    }
+
+    document.getElementById("editTable").addEventListener("click", function(e) {
+      if (e.target.tagName === "TD" && e.target.cellIndex !== 2) {
+        const row = e.target.closest("tr");
+        const plantId = document.getElementById("modalTitle").innerText;
+        const trait = row.cells[0].innerText;
+        fetchTraitHistory(plantId, trait, row);
+      }
+    });
   </script>
 {% endif %}
 </body>

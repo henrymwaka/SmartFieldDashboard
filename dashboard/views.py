@@ -1,16 +1,20 @@
 from django.shortcuts import render
 from io import TextIOWrapper
-from .models import TraitSchedule
-import csv
-from datetime import timedelta
-from django.http import HttpResponse
+from .models import TraitSchedule, PlantTraitData
+from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET
+import csv, json
+from datetime import timedelta
 
+# ✅ Home dashboard
 @login_required
 def index(request):
     return render(request, 'dashboard/index.html')
 
+# ✅ Upload CSV with trait data and render dashboard
 @login_required
 def upload_csv(request):
     if request.method == 'POST' and request.FILES.get('file'):
@@ -30,7 +34,6 @@ def upload_csv(request):
                 except ValueError:
                     planting_dates[entry["plant_id"]] = None
 
-        # Save trait values to database
         for entry in data:
             pid = entry.get("plant_id")
             for trait in trait_fields:
@@ -43,14 +46,12 @@ def upload_csv(request):
                         uploaded_by=request.user
                     )
 
-        # Trait schedule and visualization preparation
         trait_schedule = {t.trait: t.days_after_planting for t in TraitSchedule.objects.all()}
         today = timezone.now()
 
         trait_flags = {}
         trait_due_dates = {}
         trait_summary = {}
-
         complete, incomplete, empty = 0, 0, 0
         plot_labels, plot_data, plot_colors = [], [], []
 
@@ -100,7 +101,6 @@ def upload_csv(request):
                 plot_colors.append("orange")
                 incomplete += 1
 
-        # Cache data for export
         request.session['cached_data'] = data
         request.session['cached_trait_flags'] = trait_flags
 
@@ -118,6 +118,7 @@ def upload_csv(request):
 
     return render(request, 'dashboard/upload.html')
 
+# ✅ Upload trait schedule CSV
 @login_required
 def upload_schedule_csv(request):
     if request.method == 'POST' and request.FILES.get('file'):
@@ -132,12 +133,12 @@ def upload_schedule_csv(request):
         return render(request, 'dashboard/upload.html', {'message': 'Schedule uploaded successfully!'})
     return render(request, 'dashboard/upload.html')
 
+# ✅ Export CSV of trait statuses
 @login_required
 def export_trait_status_csv(request):
     headers = ['plant_id'] + [t.trait for t in TraitSchedule.objects.all()]
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="trait_status.csv"'
-
     writer = csv.writer(response)
     writer.writerow(headers)
 
@@ -153,10 +154,8 @@ def export_trait_status_csv(request):
         writer.writerow(row)
 
     return response
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-import json
 
+# ✅ Save edits directly to database (used in edit modal)
 @csrf_exempt
 @login_required
 def save_trait_edits(request):
@@ -164,17 +163,26 @@ def save_trait_edits(request):
         try:
             data = json.loads(request.body.decode('utf-8'))
             edits = data.get("edits", {})
-            # Optional: persist to DB instead of session
-            cached_data = request.session.get('cached_data', [])
-            for entry in cached_data:
-                pid = entry.get("plant_id")
-                if pid in edits:
-                    entry.update(edits[pid])
-            request.session['cached_data'] = cached_data
+
+            for plant_id, traits in edits.items():
+                for trait, value in traits.items():
+                    if value.strip():
+                        PlantTraitData.objects.update_or_create(
+                            plant_id=plant_id,
+                            trait=trait,
+                            defaults={
+                                "value": value.strip(),
+                                "uploaded_by": request.user,
+                            }
+                        )
+
             return JsonResponse({"status": "success"})
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
+
     return JsonResponse({"status": "invalid request"}, status=405)
+
+# ✅ Update only session cache (optional)
 @csrf_exempt
 @login_required
 def update_trait_value(request):
@@ -185,13 +193,11 @@ def update_trait_value(request):
             trait = data.get('trait')
             new_value = data.get('value')
 
-            # Update trait_flags session data
             trait_flags = request.session.get('cached_trait_flags', {})
             if plant_id in trait_flags and trait in trait_flags[plant_id]:
                 trait_flags[plant_id][trait] = new_value
                 request.session['cached_trait_flags'] = trait_flags
 
-            # Update raw data so CSV export reflects edits
             cached_data = request.session.get('cached_data', [])
             for entry in cached_data:
                 if entry.get('plant_id') == plant_id:
@@ -203,4 +209,52 @@ def update_trait_value(request):
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
     return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
 
+# ✅ AJAX: Get trait history per plant
+@require_GET
+@login_required
+def plant_trait_history(request, plant_id):
+    traits = PlantTraitData.objects.filter(plant_id=plant_id).order_by('-timestamp')
+    grouped = {}
+    for t in traits:
+        grouped.setdefault(t.trait, []).append({
+            "value": t.value,
+            "timestamp": t.timestamp.strftime("%Y-%m-%d %H:%M"),
+            "user": t.uploaded_by.username if t.uploaded_by else "unknown"
+        })
+    return JsonResponse({"plant_id": plant_id, "traits": grouped})
 
+# ✅ Snapshot: HTML view of historical trait values
+@require_GET
+@login_required
+def plant_snapshot(request, plant_id):
+    traits = PlantTraitData.objects.filter(plant_id=plant_id).order_by('trait', '-timestamp')
+    grouped = {}
+    for t in traits:
+        grouped.setdefault(t.trait, []).append({
+            "value": t.value,
+            "timestamp": t.timestamp.strftime("%Y-%m-%d %H:%M"),
+            "user": t.uploaded_by.username if t.uploaded_by else "unknown"
+        })
+    return render(request, 'dashboard/snapshot.html', {
+        "plant_id": plant_id,
+        "grouped_traits": grouped
+    })
+
+# ✅ Download snapshot as CSV
+@require_GET
+@login_required
+def download_plant_history_csv(request, plant_id):
+    traits = PlantTraitData.objects.filter(plant_id=plant_id).order_by('trait', '-timestamp')
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{plant_id}_trait_history.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Trait', 'Value', 'Timestamp', 'Uploaded By'])
+    for t in traits:
+        writer.writerow([
+            t.trait,
+            t.value,
+            t.timestamp.strftime('%Y-%m-%d %H:%M'),
+            t.uploaded_by.username if t.uploaded_by else 'unknown'
+        ])
+    return response

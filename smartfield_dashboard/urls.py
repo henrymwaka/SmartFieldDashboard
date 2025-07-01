@@ -12,9 +12,10 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(template_name='dashboard/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('save-edits/', views.save_trait_edits, name='save_trait_edits'),
-path('history/<str:plant_id>/', views.plant_trait_history, name='plant_trait_history'),
-
-
-    # ✅ Add this new path for AJAX updates
     path('update-trait/', views.update_trait_value, name='update_trait'),
+
+    # Trait history and snapshot
+    path('history/<str:plant_id>/', views.plant_trait_history, name='plant_trait_history'),
+    path('snapshot/<str:plant_id>/', views.plant_snapshot, name='plant_snapshot'),
+    path('snapshot/<str:plant_id>/download/', views.download_plant_history_csv, name='download_plant_history_csv'),
 ]

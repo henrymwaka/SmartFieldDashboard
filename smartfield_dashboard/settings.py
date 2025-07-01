@@ -64,5 +64,6 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'dashboard' / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 LOGIN_URL = '/admin/login/'
 

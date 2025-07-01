@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Snapshot - {{ plant_id }}</title>
+    <style>
+        table { border-collapse: collapse; width: 80%; margin: 20px auto; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f5f5f5; }
+    </style>
+</head>
+<body>
+  <h2 style="text-align:center;">Trait Snapshot for Plant: {{ plant_id }}</h2>
+  <a href="/" style="margin-left:10%;">⬅️ Back to Dashboard</a>
+  <table>
+    <tr>
+      <th>Trait</th>
+      <th>Value</th>
+      <th>Timestamp</th>
+      <th>Uploaded By</th>
+    </tr>
+    {% for trait, records in traits.items %}
+      {% for r in records %}
+      <tr>
+        <td>{{ trait }}</td>
+        <td>{{ r.value }}</td>
+        <td>{{ r.timestamp }}</td>
+        <td>{{ r.user }}</td>
+      </tr>
+      {% endfor %}
+    {% endfor %}
+  </table>
+</body>
+</html>
