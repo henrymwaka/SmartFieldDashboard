@@ -6,6 +6,10 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
+from .forms import BulkGPSAssignmentForm
+from .models import FieldPlot
+from django.contrib import messages
+from django.shortcuts import redirect
 import csv, json
 from datetime import timedelta
 
@@ -258,3 +262,82 @@ def download_plant_history_csv(request, plant_id):
             t.uploaded_by.username if t.uploaded_by else 'unknown'
         ])
     return response
+
+# ✅ Serve Field Visualization HTML
+@login_required
+def field_visualization_view(request):
+    return render(request, 'dashboard/smartfield_field_visualization.html')
+
+def field_map_view(request):
+    return render(request, 'dashboard/field_map.html')
+
+@login_required
+def bulk_gps_assignment(request):
+    if request.method == 'POST':
+        form = BulkGPSAssignmentForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            plot, created = FieldPlot.objects.update_or_create(
+                plant_id=data['plant_id'],
+                defaults={
+                    'latitude': data['latitude'],
+                    'longitude': data['longitude'],
+                    'status': data['status']
+                }
+            )
+            messages.success(request, f"GPS data saved for {data['plant_id']}")
+            return redirect('bulk_gps')
+    else:
+        form = BulkGPSAssignmentForm()
+
+    return render(request, 'dashboard/bulk_gps.html', {'form': form})
+
+@login_required
+def trait_status_table(request):
+    data = request.session.get('cached_data')
+    trait_flags = request.session.get('cached_trait_flags')
+    headers = ['plant_id'] + [t.trait for t in TraitSchedule.objects.all()]
+
+    if not data or not trait_flags:
+        return HttpResponse("No cached data found. Please upload trait data first.", status=400)
+
+    table_rows = []
+    for entry in data:
+        pid = entry.get('plant_id')
+        row = [pid] + [trait_flags.get(pid, {}).get(trait, '') for trait in headers[1:]]
+        table_rows.append(row)
+
+    return render(request, 'dashboard/trait_status_table.html', {
+        'headers': headers,
+        'table_rows': table_rows
+    })
+
+
+
+
+# ✅ API: GPS coordinates for field visualization
+@require_GET
+@login_required
+def plot_coordinates_api(request):
+    from .models import FieldPlot, PlantTraitData
+
+    trait_map = {}
+    for pt in PlantTraitData.objects.all():
+        key = (pt.plant_id, pt.trait.lower())
+        trait_map[key] = pt.value
+
+    plots = FieldPlot.objects.all()
+    data = []
+    for p in plots:
+        if p.latitude is not None and p.longitude is not None:
+            data.append({
+                "id": p.plant_id,
+                "latitude": p.latitude,
+                "longitude": p.longitude,
+                "status": p.status,
+                "traits": {
+                    "height": trait_map.get((p.plant_id, "height")),
+                    "chlorophyll": trait_map.get((p.plant_id, "chlorophyll")),
+                }
+            })
+    return JsonResponse({"plots": data})
