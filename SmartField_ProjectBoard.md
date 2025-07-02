@@ -1,4 +1,3 @@
-
 # 📄 SmartField Project Board
 
 This project board tracks the key tasks, milestones, and progress of the SmartField data collection and dashboard system.
@@ -20,6 +19,7 @@ This project board tracks the key tasks, milestones, and progress of the SmartFi
 - [x] Snapshot trait history per plant
 - [x] GPS mapping of plots on field map
 - [x] Time-based reminder logic (based on planting date + days after)
+- [x] 🧬 **Trait Heatmap View with dropdown selector** to visualize per-trait completion across all plants (color-coded using Chart.js)
 
 ---
 
