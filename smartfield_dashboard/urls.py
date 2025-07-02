@@ -4,6 +4,8 @@ from django.urls import path
 from dashboard import views
 from dashboard.views import plot_coordinates_api, field_map_view, bulk_gps_assignment
 from django.contrib.auth import views as auth_views
+from dashboard.views import trait_heatmap_view
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -17,6 +19,10 @@ urlpatterns = [
     path('update-trait/', views.update_trait_value, name='update_trait'),
     path('trait-status/', trait_status_table, name='trait_status_table'),
     path('trait-status/', views.trait_status_table, name='trait_status_table'),
+    path('trait-heatmap/', trait_heatmap_view, name='trait_heatmap'),
+    
+    
+
 
 
     # Bulk GPS assignment form

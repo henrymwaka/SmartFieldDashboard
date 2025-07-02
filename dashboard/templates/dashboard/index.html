@@ -64,6 +64,11 @@
 <body>
 {% load filters %}
 <h1>SmartField Supervisor Dashboard</h1>
+<div style="margin: 10px 0;">
+  <a href="{% url 'trait_status_table' %}">🔍 View Trait Status Table</a> |
+  <a href="{% url 'field_visualization' %}">🌾 Visualize Field Plots</a>
+  <a href="{% url 'trait_heatmap' %}">🧬 Trait Heatmap View</a> |
+</div>
 
 {% if user.is_authenticated %}
   <p>Logged in as {{ user.username }} | <a href="{% url 'logout' %}">Logout</a></p>

@@ -1,0 +1,163 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SmartField: Field Data Visualization</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f9f9f9;
+    }
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(10, 60px);
+      grid-gap: 5px;
+      margin-top: 30px;
+    }
+    .plot-cell {
+      width: 60px;
+      height: 60px;
+      text-align: center;
+      line-height: 60px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      position: relative;
+    }
+    .completed { background-color: #28a745; color: white; }
+    .due-soon { background-color: #ffc107; color: black; }
+    .overdue { background-color: #dc3545; color: white; }
+    .too-early { background-color: #6c757d; color: white; }
+    .heatmap-overlay {
+      position: absolute;
+      bottom: 2px;
+      left: 2px;
+      right: 2px;
+      height: 8px;
+      border-radius: 3px;
+      background: rgba(0, 0, 0, 0.1);
+    }
+    .legend {
+      margin-top: 20px;
+    }
+    .legend-item {
+      display: inline-block;
+      margin-right: 15px;
+    }
+    .legend-box {
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    #modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: white;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      z-index: 1000;
+      max-width: 400px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    #modal-close {
+      float: right;
+      cursor: pointer;
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>Field Data Visualization – Trial Grid</h2>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-box completed" style="background:#28a745"></span> Completed</div>
+    <div class="legend-item"><span class="legend-box due-soon" style="background:#ffc107"></span> Due Soon</div>
+    <div class="legend-item"><span class="legend-box overdue" style="background:#dc3545"></span> Overdue</div>
+    <div class="legend-item"><span class="legend-box too-early" style="background:#6c757d"></span> Too Early</div>
+  </div>
+
+  <label for="traitSelect">Heatmap Trait:</label>
+  <select id="traitSelect">
+    <option value="none">None</option>
+    <option value="plant_height">Plant Height</option>
+    <option value="leaf_count">Leaf Count</option>
+    <option value="disease_score">Disease Score</option>
+  </select>
+
+  <div class="grid-container" id="fieldGrid"></div>
+
+  <div id="modal">
+    <span id="modal-close">&times;</span>
+    <div id="modal-content"></div>
+  </div>
+
+  <script>
+    const numRows = 10;
+    const numCols = 10;
+    const grid = document.getElementById('fieldGrid');
+
+    const statuses = ['completed', 'due-soon', 'overdue', 'too-early'];
+
+    const mockTraitData = {
+      plant_height: Array.from({length: 100}, () => Math.random() * 200),
+      leaf_count: Array.from({length: 100}, () => Math.random() * 10),
+      disease_score: Array.from({length: 100}, () => Math.random() * 5)
+    };
+
+    function getHeatColor(trait, value) {
+      let max = Math.max(...mockTraitData[trait]);
+      let min = Math.min(...mockTraitData[trait]);
+      let normalized = (value - min) / (max - min);
+      let r = Math.floor(255 * normalized);
+      let g = Math.floor(255 * (1 - normalized));
+      return `rgb(${r}, ${g}, 0)`;
+    }
+
+    function renderGrid(selectedTrait = 'none') {
+      grid.innerHTML = '';
+      for (let i = 0; i < numRows * numCols; i++) {
+        const cell = document.createElement('div');
+        const status = statuses[Math.floor(Math.random() * statuses.length)];
+        cell.className = `plot-cell ${status}`;
+        cell.innerText = `P${i+1}`;
+        cell.title = `Plot ${i+1} (${status.replace('-', ' ')})`;
+
+        if (selectedTrait !== 'none') {
+          const value = mockTraitData[selectedTrait][i];
+          const overlay = document.createElement('div');
+          overlay.className = 'heatmap-overlay';
+          overlay.style.background = getHeatColor(selectedTrait, value);
+          cell.appendChild(overlay);
+        }
+
+        cell.onclick = () => {
+          const traitValues = Object.keys(mockTraitData).map(key => `${key.replace('_', ' ')}: ${mockTraitData[key][i].toFixed(2)}`).join('<br>');
+          document.getElementById('modal-content').innerHTML = `<h3>Plot ${i+1} Details</h3><p>Status: ${status.replace('-', ' ')}</p><p>${traitValues}</p>`;
+          document.getElementById('modal').style.display = 'block';
+        };
+        grid.appendChild(cell);
+      }
+    }
+
+    document.getElementById('traitSelect').addEventListener('change', (e) => {
+      renderGrid(e.target.value);
+    });
+
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('modal').style.display = 'none';
+    });
+
+    renderGrid();
+  </script>
+</body>
+</html>

@@ -313,6 +313,18 @@ def trait_status_table(request):
     })
 
 
+@login_required
+def trait_heatmap_view(request):
+    data = request.session.get('cached_data', [])
+    trait_flags = request.session.get('cached_trait_flags', {})
+    headers = list(data[0].keys()) if data else []
+
+    return render(request, 'dashboard/trait_heatmap.html', {
+        'headers': headers,
+        'data': data,
+        'trait_flags': trait_flags
+    })
+
 
 
 # ✅ API: GPS coordinates for field visualization

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SmartField: Field Data Visualization</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background-color: #f9f9f9; }
+    .grid-container { display: grid; grid-template-columns: repeat(10, 60px); grid-gap: 5px; margin-top: 30px; }
+    .plot-cell {
+      width: 60px; height: 60px; text-align: center; line-height: 60px; border-radius: 6px;
+      font-size: 12px; font-weight: bold; cursor: pointer; border: 1px solid #ccc; position: relative;
+    }
+    .completed { background-color: #28a745; color: white; }
+    .due-soon { background-color: #ffc107; color: black; }
+    .overdue { background-color: #dc3545; color: white; }
+    .too-early { background-color: #6c757d; color: white; }
+    .heatmap-overlay {
+      position: absolute; bottom: 2px; left: 2px; right: 2px; height: 8px; border-radius: 3px; background: rgba(0, 0, 0, 0.1);
+    }
+    .legend { margin-top: 20px; }
+    .legend-item { display: inline-block; margin-right: 15px; }
+    .legend-box { display: inline-block; width: 15px; height: 15px; margin-right: 5px; vertical-align: middle; }
+    #modal {
+      display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background-color: white; padding: 20px; border: 1px solid #ccc; border-radius: 8px;
+      z-index: 1000; max-width: 500px; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    #modal-close { float: right; cursor: pointer; color: red; font-weight: bold; }
+    #chartContainer { margin-top: 40px; display: none; }
+    canvas { max-width: 100%; }
+    .history-button { margin-top: 10px; display: inline-block; background: #007bff; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    #historyChartContainer { display: none; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>Field Data Visualization – Trial Grid</h2>
+
+  <div class="legend">
+    <div class="legend-item"><span class="legend-box completed" style="background:#28a745"></span> Completed</div>
+    <div class="legend-item"><span class="legend-box due-soon" style="background:#ffc107"></span> Due Soon</div>
+    <div class="legend-item"><span class="legend-box overdue" style="background:#dc3545"></span> Overdue</div>
+    <div class="legend-item"><span class="legend-box too-early" style="background:#6c757d"></span> Too Early</div>
+  </div>
+
+  <label for="traitSelect">Heatmap Trait:</label>
+  <select id="traitSelect">
+    <option value="none">None</option>
+  </select>
+
+  <div class="grid-container" id="fieldGrid"></div>
+
+  <div id="modal">
+    <span id="modal-close">&times;</span>
+    <div id="modal-content"></div>
+    <div id="historyChartContainer">
+      <canvas id="historyChart"></canvas>
+    </div>
+  </div>
+
+  <div id="chartContainer">
+    <h3>Trait Distribution (Boxplot)</h3>
+    <canvas id="traitChart"></canvas>
+  </div>
+
+  <script>
+    const grid = document.getElementById('fieldGrid');
+    let chartInstance = null;
+    let historyChart = null;
+
+    function getHeatColor(trait, value, traitRange) {
+      const [min, max] = traitRange;
+      let normalized = (value - min) / (max - min);
+      let r = Math.floor(255 * normalized);
+      let g = Math.floor(255 * (1 - normalized));
+      return `rgb(${r}, ${g}, 0)`;
+    }
+
+    async function fetchAndRenderGrid(selectedTrait = 'none') {
+      const res = await fetch('/api/trait-values/');
+      const data = await res.json();
+      const traits = data.traits;
+      const plants = data.plants;
+
+      const traitSelect = document.getElementById('traitSelect');
+      traitSelect.innerHTML = '<option value="none">None</option>';
+      traits.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.name;
+        opt.textContent = t.name.replace('_', ' ');
+        traitSelect.appendChild(opt);
+      });
+
+      const selected = selectedTrait !== 'none' ? traits.find(t => t.name === selectedTrait) : null;
+      grid.innerHTML = '';
+      const traitValues = [];
+
+      plants.forEach((p, i) => {
+        const cell = document.createElement('div');
+        cell.className = `plot-cell ${p.status}`;
+        cell.innerText = p.id;
+        cell.title = `Plot ${p.id} (${p.status})`;
+
+        if (selected && p.traits[selected.name]) {
+          const value = parseFloat(p.traits[selected.name]);
+          traitValues.push(value);
+          const overlay = document.createElement('div');
+          overlay.className = 'heatmap-overlay';
+          overlay.style.background = getHeatColor(selected.name, value, selected.range);
+          cell.appendChild(overlay);
+        }
+
+        cell.onclick = () => {
+          const traitDetails = Object.entries(p.traits).map(([k, v]) => `${k.replace('_', ' ')}: ${v}`).join('<br>');
+          document.getElementById('modal-content').innerHTML = `<h3>Plot ${p.id} Details</h3><p>Status: ${p.status}</p><p>${traitDetails}</p><button class='history-button' onclick='loadHistoryChart("${p.id}")'>📈 View History</button>`;
+          document.getElementById('historyChartContainer').style.display = 'none';
+          document.getElementById('modal').style.display = 'block';
+        };
+
+        grid.appendChild(cell);
+      });
+
+      if (selected && traitValues.length > 0) {
+        document.getElementById('chartContainer').style.display = 'block';
+        renderChart(traitValues, selected.name);
+      } else {
+        document.getElementById('chartContainer').style.display = 'none';
+      }
+    }
+
+    async function loadHistoryChart(plantId) {
+      const res = await fetch(`/history/${plantId}/`);
+      const data = await res.json();
+      const labels = [];
+      const datasets = [];
+      const traitMap = {};
+
+      Object.entries(data.traits).forEach(([trait, records]) => {
+        records.forEach(r => {
+          if (!traitMap[trait]) traitMap[trait] = { label: trait, data: [], fill: false };
+          traitMap[trait].data.push({ x: r.timestamp, y: parseFloat(r.value) });
+          if (!labels.includes(r.timestamp)) labels.push(r.timestamp);
+        });
+      });
+
+      if (historyChart) historyChart.destroy();
+      historyChart = new Chart(document.getElementById('historyChart').getContext('2d'), {
+        type: 'line',
+        data: { datasets: Object.values(traitMap) },
+        options: {
+          responsive: true,
+          scales: {
+            x: { type: 'time', time: { unit: 'day' }, title: { display: true, text: 'Date' } },
+            y: { title: { display: true, text: 'Value' } }
+          },
+          plugins: { title: { display: true, text: `Trait History for ${plantId}` } }
+        }
+      });
+      document.getElementById('historyChartContainer').style.display = 'block';
+    }
+
+    function renderChart(values, label) {
+      const ctx = document.getElementById('traitChart').getContext('2d');
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx, {
+        type: 'boxplot',
+        data: {
+          labels: [label],
+          datasets: [{ label: label, data: values, backgroundColor: 'rgba(0,123,255,0.5)' }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false }, title: { display: true, text: 'Trait Value Distribution' } }
+        }
+      });
+    }
+
+    document.getElementById('traitSelect').addEventListener('change', (e) => {
+      fetchAndRenderGrid(e.target.value);
+    });
+
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('modal').style.display = 'none';
+    });
+
+    fetchAndRenderGrid();
+  </script>
+</body>
+</html>
