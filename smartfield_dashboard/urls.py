@@ -60,4 +60,8 @@ urlpatterns = [
     path('history/<str:plant_id>/', plant_trait_history, name='plant_trait_history'),
     path('snapshot/<str:plant_id>/', plant_snapshot, name='plant_snapshot'),
     path('snapshot/<str:plant_id>/download/', download_plant_history_csv, name='download_plant_history_csv'),
+    
+    # Trait Reminder
+    path('reminder-dashboard/', views.trait_reminder_dashboard, name='trait_reminder_dashboard'),
+
 ]

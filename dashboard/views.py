@@ -356,3 +356,26 @@ def plot_planting_dates(request):
 
     plots = FieldPlot.objects.all().order_by('plant_id')
     return render(request, 'dashboard/planting_dates.html', {'plots': plots})
+   
+# -----------------------------
+# 9. Reminder Dashboard View
+# -----------------------------
+@login_required
+def trait_reminder_dashboard(request):
+    timelines = TraitTimeline.objects.all().order_by('plant_id', 'trait')
+    plant_trait_map = {}
+
+    for entry in timelines:
+        plant_id = entry.plant_id
+        trait = entry.trait
+        flag = entry.status_flag
+        plant_trait_map.setdefault(plant_id, {})[trait] = flag
+
+    trait_list = sorted(set(t.trait for t in timelines))
+    plant_ids = sorted(plant_trait_map.keys())
+
+    return render(request, 'dashboard/trait_reminder_dashboard.html', {
+        'trait_list': trait_list,
+        'plant_trait_map': plant_trait_map,
+        'plant_ids': plant_ids,
+    })

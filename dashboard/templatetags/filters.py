@@ -21,3 +21,7 @@ def get_nested(d, key):
     For example: {{ trait_summary|get_nested:trait|get_item:"✔️" }}
     """
     return d.get(key, {}) if isinstance(d, dict) else {}
+
+@register.filter
+def get_item(dictionary, key):
+    return dictionary.get(key)

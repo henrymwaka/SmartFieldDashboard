@@ -1,0 +1,28 @@
+{% extends "dashboard/base.html" %}
+{% load filters %}
+
+{% block content %}
+<h2>📅 Trait Reminder Dashboard</h2>
+<table border="1" cellpadding="4" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Plant ID</th>
+      {% for trait in trait_list %}
+        <th>{{ trait }}</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for plant_id in plant_ids %}
+      <tr>
+        <td>{{ plant_id }}</td>
+        {% for trait in trait_list %}
+          <td style="text-align:center;">
+            {{ plant_trait_map|get_item:plant_id|get_item:trait|default:"-" }}
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
