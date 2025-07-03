@@ -8,8 +8,9 @@ from django.contrib import messages
 from io import TextIOWrapper
 from datetime import timedelta
 from django.utils.dateparse import parse_date
+from dashboard.models import TraitTimeline
+from dashboard.utils import calculate_trait_reminder_status
 import csv, json
-
 from .models import TraitSchedule, PlantTraitData, FieldPlot, PlantData, TraitTimeline
 from .forms import BulkGPSAssignmentForm
 
@@ -360,22 +361,38 @@ def plot_planting_dates(request):
 # -----------------------------
 # 9. Reminder Dashboard View
 # -----------------------------
+
 @login_required
 def trait_reminder_dashboard(request):
     timelines = TraitTimeline.objects.all().order_by('plant_id', 'trait')
     plant_trait_map = {}
+    trait_reminders = []
 
     for entry in timelines:
         plant_id = entry.plant_id
         trait = entry.trait
-        flag = entry.status_flag
-        plant_trait_map.setdefault(plant_id, {})[trait] = flag
+        expected = entry.expected_date
+        actual = entry.actual_date
+        status = calculate_trait_reminder_status(expected, actual)
+
+        # Update matrix display
+        plant_trait_map.setdefault(plant_id, {})[trait] = status
+
+        # Add to reminder list
+        trait_reminders.append({
+            'plot': plant_id,
+            'trait': trait,
+            'status': status,
+            'expected_date': expected,
+            'actual_date': actual,
+            'note': entry.note,
+        })
 
     trait_list = sorted(set(t.trait for t in timelines))
     plant_ids = sorted(plant_trait_map.keys())
-
     return render(request, 'dashboard/trait_reminder_dashboard.html', {
         'trait_list': trait_list,
         'plant_trait_map': plant_trait_map,
         'plant_ids': plant_ids,
+        'trait_reminders': trait_reminders,
     })

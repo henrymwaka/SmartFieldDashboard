@@ -25,4 +25,30 @@
     {% endfor %}
   </tbody>
 </table>
+<h2>Trait Reminders</h2>
+<table class="table" border="1" cellpadding="4" cellspacing="0" style="margin-top:20px;">
+  <thead>
+    <tr>
+      <th>Plot</th>
+      <th>Trait</th>
+      <th>Status</th>
+      <th>Expected Date</th>
+      <th>Actual Date</th>
+      <th>Note</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for reminder in trait_reminders %}
+    <tr>
+      <td>{{ reminder.plot }}</td>
+      <td>{{ reminder.trait }}</td>
+      <td>{{ reminder.status }}</td>
+      <td>{{ reminder.expected_date }}</td>
+      <td>{{ reminder.actual_date|default:"—" }}</td>
+      <td>{{ reminder.note }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
 {% endblock %}
