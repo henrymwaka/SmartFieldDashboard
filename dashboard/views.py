@@ -1,24 +1,30 @@
-from django.shortcuts import render
-from io import TextIOWrapper
-from .models import TraitSchedule, PlantTraitData
+from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
-from .forms import BulkGPSAssignmentForm
-from .models import FieldPlot
 from django.contrib import messages
-from django.shortcuts import redirect
-import csv, json
+from io import TextIOWrapper
 from datetime import timedelta
+from django.utils.dateparse import parse_date
+import csv, json
 
-# ✅ Home dashboard
+from .models import TraitSchedule, PlantTraitData, FieldPlot, PlantData, TraitTimeline
+from .forms import BulkGPSAssignmentForm
+
+# -----------------------------
+# 1. HOME DASHBOARD
+# -----------------------------
+
 @login_required
 def index(request):
     return render(request, 'dashboard/index.html')
 
-# ✅ Upload CSV with trait data and render dashboard
+# -----------------------------
+# 2. CSV UPLOAD VIEWS
+# -----------------------------
+
 @login_required
 def upload_csv(request):
     if request.method == 'POST' and request.FILES.get('file'):
@@ -52,10 +58,7 @@ def upload_csv(request):
 
         trait_schedule = {t.trait: t.days_after_planting for t in TraitSchedule.objects.all()}
         today = timezone.now()
-
-        trait_flags = {}
-        trait_due_dates = {}
-        trait_summary = {}
+        trait_flags, trait_due_dates, trait_summary = {}, {}, {}
         complete, incomplete, empty = 0, 0, 0
         plot_labels, plot_data, plot_colors = [], [], []
 
@@ -75,13 +78,7 @@ def upload_csv(request):
                     if due_day and pid in planting_dates and planting_dates[pid]:
                         expected_date = planting_dates[pid] + timedelta(days=due_day)
                         due_map[trait] = expected_date.strftime("%Y-%m-%d")
-
-                        if today >= expected_date:
-                            flags[trait] = '❌'
-                        elif (expected_date - today).days <= 3:
-                            flags[trait] = '⏳'
-                        else:
-                            flags[trait] = '🕓'
+                        flags[trait] = '❌' if today >= expected_date else ('⏳' if (expected_date - today).days <= 3 else '🕓')
                     else:
                         flags[trait] = '🕓'
 
@@ -90,20 +87,13 @@ def upload_csv(request):
 
             trait_flags[pid] = flags
             trait_due_dates[pid] = due_map
-
             total_traits = len(trait_fields)
             plot_labels.append(pid)
             plot_data.append(completed)
-
-            if completed == total_traits:
-                plot_colors.append("green")
-                complete += 1
-            elif completed == 0:
-                plot_colors.append("red")
-                empty += 1
-            else:
-                plot_colors.append("orange")
-                incomplete += 1
+            plot_colors.append("green" if completed == total_traits else ("red" if completed == 0 else "orange"))
+            complete += (completed == total_traits)
+            empty += (completed == 0)
+            incomplete += (0 < completed < total_traits)
 
         request.session['cached_data'] = data
         request.session['cached_trait_flags'] = trait_flags
@@ -119,10 +109,9 @@ def upload_csv(request):
             'plot_colors': plot_colors,
             'summary_data': [complete, incomplete, empty],
         })
-
     return render(request, 'dashboard/upload.html')
 
-# ✅ Upload trait schedule CSV
+
 @login_required
 def upload_schedule_csv(request):
     if request.method == 'POST' and request.FILES.get('file'):
@@ -137,7 +126,10 @@ def upload_schedule_csv(request):
         return render(request, 'dashboard/upload.html', {'message': 'Schedule uploaded successfully!'})
     return render(request, 'dashboard/upload.html')
 
-# ✅ Export CSV of trait statuses
+# -----------------------------
+# 3. CSV EXPORT
+# -----------------------------
+
 @login_required
 def export_trait_status_csv(request):
     headers = ['plant_id'] + [t.trait for t in TraitSchedule.objects.all()]
@@ -159,34 +151,30 @@ def export_trait_status_csv(request):
 
     return response
 
-# ✅ Save edits directly to database (used in edit modal)
+# -----------------------------
+# 4. TRAIT EDITING & SESSION UPDATES
+# -----------------------------
+
 @csrf_exempt
 @login_required
 def save_trait_edits(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body.decode('utf-8'))
-            edits = data.get("edits", {})
-
-            for plant_id, traits in edits.items():
+            for plant_id, traits in data.get("edits", {}).items():
                 for trait, value in traits.items():
                     if value.strip():
                         PlantTraitData.objects.update_or_create(
                             plant_id=plant_id,
                             trait=trait,
-                            defaults={
-                                "value": value.strip(),
-                                "uploaded_by": request.user,
-                            }
+                            defaults={"value": value.strip(), "uploaded_by": request.user}
                         )
-
             return JsonResponse({"status": "success"})
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
-
     return JsonResponse({"status": "invalid request"}, status=405)
 
-# ✅ Update only session cache (optional)
+
 @csrf_exempt
 @login_required
 def update_trait_value(request):
@@ -213,7 +201,10 @@ def update_trait_value(request):
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
     return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
 
-# ✅ AJAX: Get trait history per plant
+# -----------------------------
+# 5. TRAIT HISTORY & SNAPSHOT
+# -----------------------------
+
 @require_GET
 @login_required
 def plant_trait_history(request, plant_id):
@@ -227,7 +218,7 @@ def plant_trait_history(request, plant_id):
         })
     return JsonResponse({"plant_id": plant_id, "traits": grouped})
 
-# ✅ Snapshot: HTML view of historical trait values
+
 @require_GET
 @login_required
 def plant_snapshot(request, plant_id):
@@ -244,14 +235,13 @@ def plant_snapshot(request, plant_id):
         "grouped_traits": grouped
     })
 
-# ✅ Download snapshot as CSV
+
 @require_GET
 @login_required
 def download_plant_history_csv(request, plant_id):
     traits = PlantTraitData.objects.filter(plant_id=plant_id).order_by('trait', '-timestamp')
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="{plant_id}_trait_history.csv"'
-
     writer = csv.writer(response)
     writer.writerow(['Trait', 'Value', 'Timestamp', 'Uploaded By'])
     for t in traits:
@@ -263,11 +253,15 @@ def download_plant_history_csv(request, plant_id):
         ])
     return response
 
-# ✅ Serve Field Visualization HTML
+# -----------------------------
+# 6. GPS VIEWS
+# -----------------------------
+
 @login_required
 def field_visualization_view(request):
     return render(request, 'dashboard/smartfield_field_visualization.html')
 
+@login_required
 def field_map_view(request):
     return render(request, 'dashboard/field_map.html')
 
@@ -277,79 +271,88 @@ def bulk_gps_assignment(request):
         form = BulkGPSAssignmentForm(request.POST)
         if form.is_valid():
             data = form.cleaned_data
-            plot, created = FieldPlot.objects.update_or_create(
+            FieldPlot.objects.update_or_create(
                 plant_id=data['plant_id'],
-                defaults={
-                    'latitude': data['latitude'],
-                    'longitude': data['longitude'],
-                    'status': data['status']
-                }
+                defaults={'latitude': data['latitude'], 'longitude': data['longitude'], 'status': data['status']}
             )
             messages.success(request, f"GPS data saved for {data['plant_id']}")
             return redirect('bulk_gps')
     else:
         form = BulkGPSAssignmentForm()
-
     return render(request, 'dashboard/bulk_gps.html', {'form': form})
+
+@require_GET
+@login_required
+def plot_coordinates_api(request):
+    trait_map = {(pt.plant_id, pt.trait.lower()): pt.value for pt in PlantTraitData.objects.all()}
+    plots = FieldPlot.objects.all()
+    data = [{
+        "id": p.plant_id,
+        "latitude": p.latitude,
+        "longitude": p.longitude,
+        "status": p.status,
+        "traits": {
+            "height": trait_map.get((p.plant_id, "height")),
+            "chlorophyll": trait_map.get((p.plant_id, "chlorophyll")),
+        }
+    } for p in plots if p.latitude is not None and p.longitude is not None]
+    return JsonResponse({"plots": data})
+
+# -----------------------------
+# 7. TRAIT TABLE & HEATMAP
+# -----------------------------
 
 @login_required
 def trait_status_table(request):
     data = request.session.get('cached_data')
     trait_flags = request.session.get('cached_trait_flags')
     headers = ['plant_id'] + [t.trait for t in TraitSchedule.objects.all()]
-
     if not data or not trait_flags:
         return HttpResponse("No cached data found. Please upload trait data first.", status=400)
 
-    table_rows = []
-    for entry in data:
-        pid = entry.get('plant_id')
-        row = [pid] + [trait_flags.get(pid, {}).get(trait, '') for trait in headers[1:]]
-        table_rows.append(row)
-
-    return render(request, 'dashboard/trait_status_table.html', {
-        'headers': headers,
-        'table_rows': table_rows
-    })
-
+    table_rows = [[entry.get('plant_id')] + [trait_flags.get(entry.get('plant_id'), {}).get(trait, '') for trait in headers[1:]] for entry in data]
+    return render(request, 'dashboard/trait_status_table.html', {'headers': headers, 'table_rows': table_rows})
 
 @login_required
 def trait_heatmap_view(request):
     data = request.session.get('cached_data', [])
     trait_flags = request.session.get('cached_trait_flags', {})
     headers = list(data[0].keys()) if data else []
+    return render(request, 'dashboard/trait_heatmap.html', {'headers': headers, 'data': data, 'trait_flags': trait_flags})
 
-    return render(request, 'dashboard/trait_heatmap.html', {
-        'headers': headers,
-        'data': data,
-        'trait_flags': trait_flags
-    })
+# -----------------------------
+# 8. PLANTING DATES EDITORS
+# -----------------------------
 
-
-
-# ✅ API: GPS coordinates for field visualization
-@require_GET
 @login_required
-def plot_coordinates_api(request):
-    from .models import FieldPlot, PlantTraitData
+def planting_dates_view(request):
+    if request.method == "POST":
+        for key, value in request.POST.items():
+            if key.startswith("plant_"):
+                plant_id = key.split("plant_")[1]
+                try:
+                    plant = PlantData.objects.get(plant_id=plant_id)
+                    plant.planting_date = value if value else None
+                    plant.save()
+                except PlantData.DoesNotExist:
+                    continue
+        return redirect("planting_dates")
+    plants = PlantData.objects.all().order_by("plant_id")
+    return render(request, "dashboard/planting_dates.html", {"plants": plants})
 
-    trait_map = {}
-    for pt in PlantTraitData.objects.all():
-        key = (pt.plant_id, pt.trait.lower())
-        trait_map[key] = pt.value
+@login_required
+def plot_planting_dates(request):
+    if request.method == 'POST':
+        for key, value in request.POST.items():
+            if key.startswith('planting_date_'):
+                plot_id = key.replace('planting_date_', '')
+                try:
+                    plot = FieldPlot.objects.get(plant_id=plot_id)
+                    plot.planting_date = parse_date(value)
+                    plot.save()
+                except FieldPlot.DoesNotExist:
+                    continue
+        return redirect('plot_planting_dates')
 
-    plots = FieldPlot.objects.all()
-    data = []
-    for p in plots:
-        if p.latitude is not None and p.longitude is not None:
-            data.append({
-                "id": p.plant_id,
-                "latitude": p.latitude,
-                "longitude": p.longitude,
-                "status": p.status,
-                "traits": {
-                    "height": trait_map.get((p.plant_id, "height")),
-                    "chlorophyll": trait_map.get((p.plant_id, "chlorophyll")),
-                }
-            })
-    return JsonResponse({"plots": data})
+    plots = FieldPlot.objects.all().order_by('plant_id')
+    return render(request, 'dashboard/planting_dates.html', {'plots': plots})

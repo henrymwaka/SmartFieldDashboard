@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Edit Planting Dates</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+    h2 { text-align: center; }
+    table {
+      width: 100%;
+      background: white;
+      border-collapse: collapse;
+      margin-top: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #007BFF;
+      color: white;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    input[type="date"] {
+      width: 90%;
+      padding: 5px;
+    }
+    .center {
+      text-align: center;
+      margin-top: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h2>📅 Edit Plot Planting Dates</h2>
+  <form method="POST">
+    {% csrf_token %}
+    <table>
+      <thead>
+        <tr>
+          <th>Plot ID</th>
+          <th>Planting Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for plot in plots %}
+          <tr>
+            <td>{{ plot.plot_id }}</td>
+            <td>
+              <input type="date" name="planting_date_{{ plot.id }}" value="{{ plot.planting_date|date:'Y-m-d' }}">
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="center">
+      <button type="submit">💾 Save All Dates</button>
+    </div>
+  </form>
+</body>
+</html>

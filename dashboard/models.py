@@ -29,3 +29,25 @@ class FieldPlot(models.Model):
 
     def __str__(self):
         return f"{self.plant_id} ({self.status})"
+class PlantData(models.Model):
+    plant_id = models.CharField(max_length=100, unique=True)
+    planting_date = models.DateField(null=True, blank=True)
+    # Add other trait-related fields or foreign keys as needed
+
+    def __str__(self):
+        return self.plant_id
+class TraitTimeline(models.Model):
+    plant_id = models.CharField(max_length=100)
+    trait = models.CharField(max_length=100)
+    expected_date = models.DateField(null=True, blank=True)
+    status_flag = models.CharField(max_length=10, choices=[
+        ('🕓', 'Too Early'),
+        ('⏳', 'Due Soon'),
+        ('❌', 'Overdue'),
+        ('✔️', 'Completed')
+    ], default='🕓')
+    updated_on = models.DateTimeField(auto_now=True)
+    entered_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return f"{self.plant_id} - {self.trait} ({self.status_flag})"

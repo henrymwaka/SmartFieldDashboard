@@ -66,8 +66,13 @@
 <h1>SmartField Supervisor Dashboard</h1>
 <div style="margin: 10px 0;">
   <a href="{% url 'trait_status_table' %}">🔍 View Trait Status Table</a> |
-  <a href="{% url 'field_visualization' %}">🌾 Visualize Field Plots</a>
+  <a href="{% url 'field_visualization' %}">🌾 Visualize Field Plots</a> |
   <a href="{% url 'trait_heatmap' %}">🧬 Trait Heatmap View</a> |
+  <a href="{% url 'plot_planting_dates' %}">📅 Edit Planting Dates</a>
+  
+   
+
+
 </div>
 
 {% if user.is_authenticated %}
