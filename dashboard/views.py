@@ -455,6 +455,8 @@ def export_trait_reminders_pdf(request):
         HTML(string=html_content).write_pdf(output.name)
         output.seek(0)
         return HttpResponse(output.read(), content_type='application/pdf')
+
+
 @login_required
 def export_trait_pdf(request):
     traits = TraitTimeline.objects.values_list('trait', flat=True).distinct()
@@ -475,6 +477,6 @@ def export_trait_pdf(request):
     })
 
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename=\"trait_status_report.pdf\"'
+    response['Content-Disposition'] = 'attachment; filename="trait_status_report.pdf"'
     pisa.CreatePDF(html, dest=response)
     return response
