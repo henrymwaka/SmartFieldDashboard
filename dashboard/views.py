@@ -11,20 +11,15 @@ from django.utils.dateparse import parse_date
 from dashboard.models import TraitTimeline
 from dashboard.utils import calculate_trait_reminder_status
 import csv, json
-from .models import TraitSchedule, PlantTraitData, FieldPlot, PlantData, TraitTimeline
+from .models import TraitSchedule, PlantTraitData, FieldPlot, PlantData
 from .forms import BulkGPSAssignmentForm
-
-# -----------------------------
-# 1. HOME DASHBOARD
-# -----------------------------
+from django.template.loader import get_template
+from weasyprint import HTML
+import tempfile
 
 @login_required
 def index(request):
     return render(request, 'dashboard/index.html')
-
-# -----------------------------
-# 2. CSV UPLOAD VIEWS
-# -----------------------------
 
 @login_required
 def upload_csv(request):
@@ -77,7 +72,8 @@ def upload_csv(request):
                 else:
                     due_day = trait_schedule.get(trait)
                     if due_day and pid in planting_dates and planting_dates[pid]:
-                        expected_date = planting_dates[pid] + timedelta(days=due_day)
+                        expected_date_naive = planting_dates[pid] + timedelta(days=due_day)
+                        expected_date = timezone.make_aware(expected_date_naive)
                         due_map[trait] = expected_date.strftime("%Y-%m-%d")
                         flags[trait] = '❌' if today >= expected_date else ('⏳' if (expected_date - today).days <= 3 else '🕓')
                     else:
@@ -99,6 +95,24 @@ def upload_csv(request):
         request.session['cached_data'] = data
         request.session['cached_trait_flags'] = trait_flags
 
+        TraitTimeline.objects.all().delete()
+        for pid, planting_date in planting_dates.items():
+            if not planting_date:
+                continue
+            for trait, days_after in trait_schedule.items():
+                expected_date = timezone.make_aware(planting_date + timedelta(days=days_after))
+                TraitTimeline.objects.update_or_create(
+                    plant_id=pid,
+                    trait=trait,
+                    defaults={
+                        'expected_date': expected_date,
+                        'actual_date': None,
+                        'status_flag': trait_flags.get(pid, {}).get(trait, '🕓'),
+                        'note': '',
+                        'entered_by': request.user
+                    }
+                )
+
         return render(request, 'dashboard/index.html', {
             'headers': headers,
             'data': data,
@@ -111,7 +125,6 @@ def upload_csv(request):
             'summary_data': [complete, incomplete, empty],
         })
     return render(request, 'dashboard/upload.html')
-
 
 @login_required
 def upload_schedule_csv(request):
@@ -126,7 +139,6 @@ def upload_schedule_csv(request):
             )
         return render(request, 'dashboard/upload.html', {'message': 'Schedule uploaded successfully!'})
     return render(request, 'dashboard/upload.html')
-
 # -----------------------------
 # 3. CSV EXPORT
 # -----------------------------
@@ -396,3 +408,47 @@ def trait_reminder_dashboard(request):
         'plant_ids': plant_ids,
         'trait_reminders': trait_reminders,
     })
+# -----------------------------
+# 10. Export views
+# -----------------------------
+
+@login_required
+def export_trait_reminders_pdf(request):
+    timelines = TraitTimeline.objects.all().order_by('plant_id', 'trait')
+    plant_trait_map = {}
+    trait_reminders = []
+
+    for entry in timelines:
+        plant_id = entry.plant_id
+        trait = entry.trait
+        expected = entry.expected_date
+        actual = entry.actual_date
+        status = calculate_trait_reminder_status(expected, actual)
+
+        plant_trait_map.setdefault(plant_id, {})[trait] = status
+        trait_reminders.append({
+            'plot': plant_id,
+            'trait': trait,
+            'status': status,
+            'expected_date': expected,
+            'actual_date': actual,
+            'note': entry.note,
+        })
+
+    trait_list = sorted(set(t.trait for t in timelines))
+    plant_ids = sorted(plant_trait_map.keys())
+
+    context = {
+        'trait_list': trait_list,
+        'plant_trait_map': plant_trait_map,
+        'plant_ids': plant_ids,
+        'trait_reminders': trait_reminders,
+    }
+
+    template = get_template('dashboard/trait_reminder_pdf.html')
+    html_content = template.render(context)
+
+    with tempfile.NamedTemporaryFile(delete=True, suffix='.pdf') as output:
+        HTML(string=html_content).write_pdf(output.name)
+        output.seek(0)
+        return HttpResponse(output.read(), content_type='application/pdf')

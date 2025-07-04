@@ -34,6 +34,8 @@ urlpatterns = [
     # Uploads
     path('upload/', upload_csv, name='upload_csv'),
     path('upload-schedule/', upload_schedule_csv, name='upload_schedule'),
+    path('upload-schedule/', views.upload_schedule_csv, name='upload_schedule_csv'),
+
 
     # Exports
     path('export/', export_trait_status_csv, name='export_csv'),
@@ -63,5 +65,6 @@ urlpatterns = [
     
     # Trait Reminder
     path('reminder-dashboard/', views.trait_reminder_dashboard, name='trait_reminder_dashboard'),
+    path("export-trait-reminders-pdf/", views.export_trait_reminders_pdf, name="export_trait_reminders_pdf"),
 
 ]
