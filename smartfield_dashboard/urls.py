@@ -39,6 +39,8 @@ urlpatterns = [
 
     # Exports
     path('export/', export_trait_status_csv, name='export_csv'),
+    path("export/pdf/", views.export_trait_pdf, name="export_trait_pdf"),
+
 
     # Trait edits
     path('save-edits/', save_trait_edits, name='save_trait_edits'),

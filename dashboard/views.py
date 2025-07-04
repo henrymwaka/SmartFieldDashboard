@@ -10,12 +10,15 @@ from datetime import timedelta
 from django.utils.dateparse import parse_date
 from dashboard.models import TraitTimeline
 from dashboard.utils import calculate_trait_reminder_status
+from django.template.loader import render_to_string
 import csv, json
-from .models import TraitSchedule, PlantTraitData, FieldPlot, PlantData
+from .models import TraitSchedule, PlantTraitData, FieldPlot, PlantData, TraitTimeline
 from .forms import BulkGPSAssignmentForm
 from django.template.loader import get_template
 from weasyprint import HTML
 import tempfile
+from xhtml2pdf import pisa
+import datetime
 
 @login_required
 def index(request):
@@ -452,3 +455,26 @@ def export_trait_reminders_pdf(request):
         HTML(string=html_content).write_pdf(output.name)
         output.seek(0)
         return HttpResponse(output.read(), content_type='application/pdf')
+@login_required
+def export_trait_pdf(request):
+    traits = TraitTimeline.objects.values_list('trait', flat=True).distinct()
+    plants = TraitTimeline.objects.values_list('plant_id', flat=True).distinct()
+
+    data = []
+    for plant_id in plants:
+        row = {"plant_id": plant_id, "traits": {}}
+        for trait in traits:
+            record = TraitTimeline.objects.filter(plant_id=plant_id, trait=trait).first()
+            row["traits"][trait] = record.status_flag if record else "-"
+        data.append(row)
+
+    html = render_to_string("dashboard/pdf_trait_report.html", {
+        "generated_on": datetime.datetime.now(),
+        "plant_traits": data,
+        "trait_names": traits,
+    })
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename=\"trait_status_report.pdf\"'
+    pisa.CreatePDF(html, dest=response)
+    return response

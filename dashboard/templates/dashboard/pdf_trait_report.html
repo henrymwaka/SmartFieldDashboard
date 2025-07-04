@@ -1,0 +1,75 @@
+{% load custom_filters %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trait Status Report</title>
+  <style>
+    body {
+      font-family: "Helvetica", sans-serif;
+      font-size: 12px;
+      margin: 20px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .meta {
+      text-align: right;
+      font-size: 11px;
+      margin-bottom: 10px;
+      color: #555;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    th, td {
+      border: 1px solid #aaa;
+      padding: 6px;
+      text-align: center;
+    }
+
+    th {
+      background-color: #007BFF;
+      color: white;
+    }
+
+    .✔️ { color: green; font-weight: bold; }
+    .❌ { color: red; font-weight: bold; }
+    .⏳ { color: orange; font-weight: bold; }
+    .🕓 { color: gray; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>SmartField – Trait Status Report</h2>
+  <div class="meta">
+    Generated on: {{ generated_on|date:"Y-m-d H:i" }}
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Plant ID</th>
+        {% for trait in trait_names %}
+          <th>{{ trait }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in plant_traits %}
+      <tr>
+        <td>{{ row.plant_id }}</td>
+        {% for trait in trait_names %}
+          <td class="{{ row.traits|get_item:trait }}">{{ row.traits|get_item:trait }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
