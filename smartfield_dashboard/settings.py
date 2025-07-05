@@ -1,39 +1,38 @@
-from pathlib import Path
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-SECRET_KEY = '=XwTW8KMV(Q7gE)tYxnt99$nB65aEMsZVi10KL9HUkKK$RiuBM'
-
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
+from decouple import config
 INSTALLED_APPS = [
-    'dashboard',
     'django.contrib.admin',
     'django.contrib.auth',
-    'django.contrib.contenttypes',
+    'django.contrib.contenttypes',  # ← THIS IS MISSING!
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # your apps...
+    'dashboard',  # or whatever your app is called
 ]
 
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = config('EMAIL_HOST')
+EMAIL_PORT = config('EMAIL_PORT', cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default=EMAIL_HOST_USER)
 
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 ROOT_URLCONF = 'smartfield_dashboard.urls'
+import os
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Ensure BASE_DIR is defined
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+    }
+}
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'dashboard' / 'templates'],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],  # Optional: add your custom template dirs
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -45,26 +44,24 @@ TEMPLATES = [
         },
     },
 ]
-
-WSGI_APPLICATION = 'smartfield_dashboard.wsgi.application'
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-AUTH_PASSWORD_VALIDATORS = []
-
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'UTC'
-USE_I18N = True
-USE_TZ = True
-
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',  # REQUIRED for admin & sessions
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',  # REQUIRED
+    'django.contrib.messages.middleware.MessageMiddleware',  # REQUIRED
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'dashboard' / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-LOGIN_URL = '/admin/login/'
+SECRET_KEY = config('SECRET_KEY')
+print("EMAIL_HOST:", EMAIL_HOST)
+print("EMAIL_HOST_USER:", EMAIL_HOST_USER)
+print("EMAIL_HOST_PASSWORD:", EMAIL_HOST_PASSWORD)
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEBUG = True
+ALLOWED_HOSTS = ['*']
 
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/login/'

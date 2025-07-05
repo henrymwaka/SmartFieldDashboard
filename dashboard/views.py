@@ -19,6 +19,8 @@ from weasyprint import HTML
 import tempfile
 from xhtml2pdf import pisa
 import datetime
+from django.core.mail import send_mail
+
 
 @login_required
 def index(request):
@@ -480,3 +482,24 @@ def export_trait_pdf(request):
     response['Content-Disposition'] = 'attachment; filename="trait_status_report.pdf"'
     pisa.CreatePDF(html, dest=response)
     return response
+
+# -----------------------------
+# 11. Mail
+# -----------------------------
+
+import traceback
+
+@login_required
+def test_email(request):
+    try:
+        send_mail(
+            subject='SmartField Email Test',
+            message='This is a test email from SmartField.',
+            from_email=None,
+            recipient_list=['shaykins@gmail.com'],
+            fail_silently=False,
+        )
+        return HttpResponse("Test email sent.")
+    except Exception as e:
+        traceback.print_exc()  # This prints the error in the terminal
+        return HttpResponseServerError(f"Email failed: {str(e)}")
