@@ -25,7 +25,9 @@ def brapi_calls(request):
         {"call": "commoncropnames", "methods": ["GET"], "versions": ["2.0"]},
         {"call": "programs", "methods": ["GET"], "versions": ["2.0"]},
         {"call": "studies/{studyDbId}/observationunits", "methods": ["GET"], "versions": ["2.0"]},
-        {"call": "germplasm/{germplasmDbId}", "methods": ["GET"], "versions": ["2.0"]}
+        {"call": "germplasm/{germplasmDbId}", "methods": ["GET"], "versions": ["2.0"]},
+        {"call": "seasons", "methods": ["GET"], "versions": ["2.0"]},
+
     ]
     return Response({
         "metadata": {},
@@ -364,7 +366,7 @@ def brapi_study_detail(request, studyDbId):
     })
 
 
-@api_view(['GET'])
+@api_view(['GET'])      
 def brapi_locations(request):
     plots = FieldPlot.objects.exclude(location__isnull=True).exclude(location__exact='')
     unique_locations = {}
@@ -432,5 +434,34 @@ def brapi_programs(request):
         },
         "result": {
             "data": [{"programDbId": i + 1, "programName": name} for i, name in enumerate(programs)]
+        }
+    })
+@api_view(['GET'])
+def brapi_seasons(request):
+    seasons = Trial.objects.exclude(startDate__isnull=True).values_list('startDate', flat=True)
+    unique_years = sorted(set([d.year for d in seasons if d]))
+    
+    data = [
+        {
+            "seasonDbId": str(year),
+            "season": str(year),
+            "year": year
+        }
+        for year in unique_years
+    ]
+
+    return Response({
+        "metadata": {
+            "pagination": {
+                "pageSize": len(data),
+                "currentPage": 0,
+                "totalCount": len(data),
+                "totalPages": 1
+            },
+            "status": [],
+            "datafiles": []
+        },
+        "result": {
+            "data": data
         }
     })
