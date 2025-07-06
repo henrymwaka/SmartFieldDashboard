@@ -3,8 +3,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trait Status Report</title>
   <style>
+    @page {
+      size: A4;
+      margin: 1cm;
+    }
+
     body {
       font-family: "Helvetica", sans-serif;
       font-size: 12px;
@@ -40,10 +46,10 @@
       color: white;
     }
 
-    .✔️ { color: green; font-weight: bold; }
-    .❌ { color: red; font-weight: bold; }
-    .⏳ { color: orange; font-weight: bold; }
-    .🕓 { color: gray; font-weight: bold; }
+    .completed { color: green; font-weight: bold; }
+    .overdue { color: red; font-weight: bold; }
+    .due-soon { color: orange; font-weight: bold; }
+    .too-early { color: gray; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -65,7 +71,13 @@
       <tr>
         <td>{{ row.plant_id }}</td>
         {% for trait in trait_names %}
-          <td class="{{ row.traits|get_item:trait }}">{{ row.traits|get_item:trait }}</td>
+          <td class="{% if row.traits|get_item:trait == '✔️' %}completed
+                      {% elif row.traits|get_item:trait == '❌' %}overdue
+                      {% elif row.traits|get_item:trait == '⏳' %}due-soon
+                      {% elif row.traits|get_item:trait == '🕓' %}too-early
+                      {% endif %}">
+            {{ row.traits|get_item:trait }}
+          </td>
         {% endfor %}
       </tr>
       {% endfor %}

@@ -1,30 +1,221 @@
-from django.shortcuts import render, redirect
-from django.http import HttpResponse, JsonResponse
-from django.contrib.auth.decorators import login_required
-from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET
-from django.contrib import messages
-from io import TextIOWrapper
+# =============================================================================
+# SmartField Dashboard Views
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. Imports
+# -----------------------------------------------------------------------------
+
+# Built-in modules
+import csv, json, io, datetime, tempfile, traceback
 from datetime import timedelta
+from io import TextIOWrapper
+
+# Django core
+from django.shortcuts import render, redirect
+from django.http import HttpResponse, JsonResponse, HttpResponseServerError
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_http_methods
+from django.contrib import messages
+from django.utils import timezone
 from django.utils.dateparse import parse_date
-from dashboard.models import TraitTimeline
-from dashboard.utils import calculate_trait_reminder_status
-from django.template.loader import render_to_string
-import csv, json
+from django.template.loader import render_to_string, get_template
+from django.core.mail import send_mail
+from django.contrib.auth import logout
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import EmailMessage
+from django.urls import reverse
+from .forms import CustomUserCreationForm
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.models import User
+from django.db.models import Q
+from django.views.decorators.http import require_POST
+from django.core.paginator import Paginator
+
+
+# Third-party PDF tools
+from weasyprint import HTML
+from xhtml2pdf import pisa
+
+# Local app imports
 from .models import TraitSchedule, PlantTraitData, FieldPlot, PlantData, TraitTimeline
 from .forms import BulkGPSAssignmentForm
-from django.template.loader import get_template
-from weasyprint import HTML
-import tempfile
-from xhtml2pdf import pisa
-import datetime
-from django.core.mail import send_mail
+from .utils import calculate_trait_reminder_status
 
+# ----------------------------------------------------------------------------
+# User Registration and Logout
+# ----------------------------------------------------------------------------
+
+def custom_logout(request):
+    logout(request)
+    return redirect('login')
+
+
+def register(request):
+    if request.method == 'POST':
+        form = CustomUserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save(commit=False)
+            user.is_active = False  # Require email confirmation and admin approval
+            user.save()
+
+            # Email token + activation link
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            activate_url = request.build_absolute_uri(
+                reverse('activate', kwargs={'uidb64': uid, 'token': token})
+            )
+
+            # Load email template and send
+            subject = 'Confirm Your SmartField Registration'
+            message = render_to_string('dashboard/account_activation_email.html', {
+                'user': user,
+                'activate_url': activate_url
+            })
+
+            email = EmailMessage(
+                subject,
+                message,
+                to=[user.email],
+                cc=['smartfield3@gmail.com'],  # Admin receives a copy
+            )
+            email.content_subtype = "html"
+            email.send()
+
+            messages.success(request, "Registration successful. Please check your email to confirm your address.")
+            return redirect('login')
+    else:
+        form = CustomUserCreationForm()
+    return render(request, 'dashboard/register.html', {'form': form})
+
+
+def activate(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        if user.is_active:
+            messages.info(request, 'Account already activated.')
+        else:
+            messages.success(request, 'Email confirmed. Please wait for admin approval.')
+        return redirect('login')
+    else:
+        messages.error(request, 'Activation link is invalid or expired.')
+        return redirect('login')
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def user_management(request):
+    users = User.objects.all().order_by('-date_joined')
+    return render(request, 'dashboard/user_management.html', {'users': users})
+    
+@user_passes_test(lambda u: u.is_superuser)
+@login_required
+def user_management(request):
+    query = request.GET.get('q', '')
+    status_filter = request.GET.get('status', '')
+
+    users = User.objects.all()
+    if query:
+        users = users.filter(Q(username__icontains=query) | Q(email__icontains=query))
+    if status_filter == 'active':
+        users = users.filter(is_active=True)
+    elif status_filter == 'inactive':
+        users = users.filter(is_active=False)
+    elif status_filter == 'staff':
+        users = users.filter(is_staff=True)
+
+    paginator = Paginator(users.order_by('-date_joined'), 10)  # Show 10 users per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'dashboard/user_management.html', {
+        'users': page_obj,
+        'query': query,
+        'status_filter': status_filter,
+        'page_obj': page_obj
+    })
+
+# ----------------------------------------------------------------------------
+# Main Dashboard Views
+# ----------------------------------------------------------------------------
 
 @login_required
 def index(request):
+    messages.success(request, "Welcome to the SmartField Dashboard!")
     return render(request, 'dashboard/index.html')
+@user_passes_test(lambda u: u.is_superuser)
+@require_POST
+@csrf_exempt
+def update_user_from_modal(request):
+    user_id = request.POST.get('user_id')
+    username = request.POST.get('username')
+    email = request.POST.get('email')
+    is_active = request.POST.get('is_active') == 'true'
+    is_staff = request.POST.get('is_staff') == 'true'
+    is_superuser = request.POST.get('is_superuser') == 'true'
+
+    try:
+        user = User.objects.get(id=user_id)
+        user.username = username
+        user.email = email
+        user.is_active = is_active
+        user.is_staff = is_staff
+        user.is_superuser = is_superuser
+        user.save()
+        return JsonResponse({'success': True, 'message': 'User updated successfully.'})
+    except User.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'User not found.'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+    
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def user_management(request):
+    query = request.GET.get('q', '')
+    status_filter = request.GET.get('status', '')
+
+    users = User.objects.all()
+    if query:
+        users = users.filter(Q(username__icontains=query) | Q(email__icontains=query))
+    if status_filter:
+        if status_filter == 'active':
+            users = users.filter(is_active=True)
+        elif status_filter == 'inactive':
+            users = users.filter(is_active=False)
+        elif status_filter == 'staff':
+            users = users.filter(is_staff=True)
+
+    users = users.order_by('-date_joined')
+    return render(request, 'dashboard/user_management.html', {'users': users, 'query': query, 'status_filter': status_filter})
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def update_user_status(request):
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        user_ids = request.POST.getlist('user_ids')
+        users = User.objects.filter(id__in=user_ids)
+
+        if action == 'activate':
+            users.update(is_active=True)
+            messages.success(request, f"{users.count()} user(s) activated.")
+        elif action == 'deactivate':
+            users.update(is_active=False)
+            messages.success(request, f"{users.count()} user(s) deactivated.")
+        elif action == 'delete':
+            count = users.count()
+            users.delete()
+            messages.success(request, f"{count} user(s) deleted.")
+
+    return redirect('user_management')
+    
 
 @login_required
 def upload_csv(request):
@@ -118,6 +309,7 @@ def upload_csv(request):
                     }
                 )
 
+        messages.success(request, 'Trait data uploaded successfully!')
         return render(request, 'dashboard/index.html', {
             'headers': headers,
             'data': data,
@@ -130,7 +322,31 @@ def upload_csv(request):
             'summary_data': [complete, incomplete, empty],
         })
     return render(request, 'dashboard/upload.html')
+@login_required
+@require_http_methods(["POST"])
+def upload_snapshot_csv(request, plant_id):
+    file = request.FILES.get("csv_file")
+    if not file:
+        return HttpResponse("No file uploaded", status=400)
 
+    try:
+        decoded = TextIOWrapper(file.file, encoding='utf-8')
+        reader = csv.DictReader(decoded)
+
+        for row in reader:
+            trait = row.get("Trait")
+            value = row.get("Value", "").strip()
+            if trait and value:
+                PlantTraitData.objects.update_or_create(
+                    plant_id=plant_id,
+                    trait=trait,
+                    defaults={"value": value, "uploaded_by": request.user}
+                )
+        messages.success(request, "Trait values updated from CSV.")
+    except Exception as e:
+        return HttpResponse(f"Error: {e}", status=500)
+
+    return redirect("plant_snapshot", plant_id=plant_id)
 @login_required
 def upload_schedule_csv(request):
     if request.method == 'POST' and request.FILES.get('file'):
@@ -142,7 +358,9 @@ def upload_schedule_csv(request):
                 trait=row['trait'],
                 days_after_planting=int(row['days_after_planting'])
             )
-        return render(request, 'dashboard/upload.html', {'message': 'Schedule uploaded successfully!'})
+        messages.success(request, 'Schedule uploaded successfully!')
+        return redirect('upload_schedule')
+
     return render(request, 'dashboard/upload.html')
 # -----------------------------
 # 3. CSV EXPORT
@@ -218,6 +436,24 @@ def update_trait_value(request):
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
     return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
+    
+@login_required
+@require_http_methods(["GET"])
+def edit_traits_view(request):
+    data = request.session.get("cached_data", [])
+    trait_flags = request.session.get("cached_trait_flags", {})
+
+    if not data or not trait_flags:
+        return HttpResponse("No cached trait data available. Please upload first.", status=400)
+
+    trait_names = [h for h in data[0].keys() if h.lower() not in ["plant_id", "block", "row", "column", "planting_date"]]
+    plant_ids = list(trait_flags.keys())
+
+    return render(request, "dashboard/edit_traits.html", {
+        "trait_names": trait_names,
+        "plant_ids": plant_ids,
+        "trait_flags": trait_flags
+    })
 
 # -----------------------------
 # 5. TRAIT HISTORY & SNAPSHOT
@@ -325,11 +561,23 @@ def trait_status_table(request):
     data = request.session.get('cached_data')
     trait_flags = request.session.get('cached_trait_flags')
     headers = ['plant_id'] + [t.trait for t in TraitSchedule.objects.all()]
+    
     if not data or not trait_flags:
         return HttpResponse("No cached data found. Please upload trait data first.", status=400)
 
-    table_rows = [[entry.get('plant_id')] + [trait_flags.get(entry.get('plant_id'), {}).get(trait, '') for trait in headers[1:]] for entry in data]
-    return render(request, 'dashboard/trait_status_table.html', {'headers': headers, 'table_rows': table_rows})
+    table_rows = []
+    for entry in data:
+        pid = entry.get('plant_id')
+        row = [pid] + [trait_flags.get(pid, {}).get(trait, '') for trait in headers[1:]]
+        table_rows.append(row)
+
+    # Zip headers with each row's values for safe data-label rendering
+    zipped_rows = [zip(headers, row) for row in table_rows]
+
+    return render(request, 'dashboard/trait_status_table.html', {
+        'headers': headers,
+        'zipped_rows': zipped_rows,
+    })
 
 @login_required
 def trait_heatmap_view(request):
@@ -482,6 +730,28 @@ def export_trait_pdf(request):
     response['Content-Disposition'] = 'attachment; filename="trait_status_report.pdf"'
     pisa.CreatePDF(html, dest=response)
     return response
+@login_required
+def download_snapshot_pdf(request, plant_id):
+    traits = PlantTraitData.objects.filter(plant_id=plant_id).order_by('trait', '-timestamp')
+    grouped = {}
+    for t in traits:
+        grouped.setdefault(t.trait, []).append({
+            "value": t.value,
+            "timestamp": t.timestamp.strftime('%Y-%m-%d %H:%M'),
+            "user": t.uploaded_by.username if t.uploaded_by else "unknown"
+        })
+
+    context = {
+        "plant_id": plant_id,
+        "grouped_traits": grouped,
+    }
+    template = get_template("dashboard/plant_snapshot_pdf.html")
+    html = template.render(context)
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="snapshot_{plant_id}.pdf"'
+    pisa.CreatePDF(io.StringIO(html), dest=response)
+    return response
 
 # -----------------------------
 # 11. Mail
@@ -503,3 +773,21 @@ def test_email(request):
     except Exception as e:
         traceback.print_exc()  # This prints the error in the terminal
         return HttpResponseServerError(f"Email failed: {str(e)}")
+def custom_logout(request):
+    logout(request)
+    return redirect('login')  # or any page you want   
+def register(request):
+    return render(request, 'dashboard/register.html')
+
+
+def register(request):
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Account created! You can now log in.")
+            return redirect('login')
+    else:
+        form = UserCreationForm()
+    return render(request, 'dashboard/register.html', {'form': form})
+    

@@ -1,77 +1,17 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>SmartField Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .trait-box {
-            display: inline-block;
-            padding: 4px 8px;
-            margin: 2px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .✔️ { background-color: #d4edda; }
-        .⏳ { background-color: #fff3cd; }
-        .❌ { background-color: #f8d7da; }
-        .🕓 { background-color: #e2e3e5; }
-        .legend { margin-top: 10px; }
-        .legend span { margin-right: 15px; }
-        button {
-            padding: 6px 12px;
-            margin: 4px;
-            font-size: 14px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .summary-row td {
-            font-weight: bold;
-            background-color: #f1f1f1;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0; top: 0;
-            width: 100%; height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-        }
-        .modal-content {
-            background-color: #fefefe;
-            margin: 10% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-        }
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 24px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
+{% extends 'base.html' %}
 {% load filters %}
+
+{% block title %}SmartField Dashboard | Supervisor View{% endblock %}
+
+{% block content %}
 <h1>SmartField Supervisor Dashboard</h1>
+
 <div style="margin: 10px 0;">
   <a href="{% url 'trait_status_table' %}">🔍 View Trait Status Table</a> |
   <a href="{% url 'field_visualization' %}">🌾 Visualize Field Plots</a> |
   <a href="{% url 'trait_heatmap' %}">🧬 Trait Heatmap View</a> |
   <a href="{% url 'plot_planting_dates' %}">📅 Edit Planting Dates</a> |
   <a href="{% url 'trait_reminder_dashboard' %}">📅 Reminder Dashboard</a>
-
-
 </div>
 
 {% if user.is_authenticated %}
@@ -97,29 +37,28 @@
     {% endfor %}
   </select>
 
- <h2>Trait Status by Plot</h2>
-<table id="traitTable" border="1">
-  <tr>
-    <th>Plant ID</th>
-    {% for trait in trait_flags|get_first_value_keys %}
-      <th class="trait-col" data-trait="{{ trait }}">{{ trait }}</th>
-    {% endfor %}
-  </tr>
-  {% for pid, flags in trait_flags.items %}
-    <tr onclick="openModal('{{ pid }}')">
-      <td><a href="{% url 'plant_snapshot' pid %}" style="text-decoration:none;">{{ pid }}</a></td>
-      {% for trait, status in flags.items %}
-        <td class="trait-col" data-trait="{{ trait }}">
-          <span class="trait-box {{ status }}" title="Due: {{ trait_due_dates|get_item:pid|get_item:trait }}">
-            {{ status }}
-          </span>
-        </td>
+  <h2>Trait Status by Plot</h2>
+  <table id="traitTable" border="1">
+    <tr>
+      <th>Plant ID</th>
+      {% for trait in trait_flags|get_first_value_keys %}
+        <th class="trait-col" data-trait="{{ trait }}">{{ trait }}</th>
       {% endfor %}
     </tr>
-  {% endfor %}
-
+    {% for pid, flags in trait_flags.items %}
+      <tr onclick="openModal('{{ pid }}')">
+        <td><a href="{% url 'plant_snapshot' pid %}" style="text-decoration:none;">{{ pid }}</a></td>
+        {% for trait, status in flags.items %}
+          <td class="trait-col" data-trait="{{ trait }}">
+            <span class="trait-box {{ status }}" title="Due: {{ trait_due_dates|get_item:pid|get_item:trait }}">
+              {{ status }}
+            </span>
+          </td>
+        {% endfor %}
       </tr>
-        {% if trait_summary %}
+    {% endfor %}
+
+    {% if trait_summary %}
     <tr class="summary-row">
       <td>Summary</td>
       {% for trait in trait_flags|get_first_value_keys %}
@@ -166,6 +105,7 @@
   <h2>Summary of Plot Completion</h2>
   <canvas id="summaryChart" width="400" height="400"></canvas>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     const plotLabels = {{ plot_labels|safe }};
     const plotData = {{ plot_data|safe }};
@@ -267,7 +207,6 @@
       if (result.status === "success") location.reload();
     };
 
-    // 🔍 Dynamic Trait History on Click
     async function fetchTraitHistory(plantId, trait, targetRow) {
       const res = await fetch(`/plant-history/${plantId}`);
       const json = await res.json();
@@ -299,5 +238,5 @@
     });
   </script>
 {% endif %}
-</body>
-</html>
+{% endblock %}
+	

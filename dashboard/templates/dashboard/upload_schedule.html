@@ -1,18 +1,30 @@
-<!DOCTYPE html>
-<html>
-<head><title>Upload Trait Schedule</title></head>
-<body>
-  <h1>Upload Trait Schedule CSV</h1>
+{% extends "dashboard/base.html" %}
+
+{% block title %}Upload Trait Schedule | SmartField{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin-top: 20px;">
+  <h2>📤 Upload Trait Schedule CSV</h2>
+
   {% if messages %}
-    {% for message in messages %}
-      <p style="color:green;">{{ message }}</p>
-    {% endfor %}
+    <div class="messages" style="margin-top: 10px;">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    </div>
   {% endif %}
-  <form method="post" enctype="multipart/form-data">
+
+  <form method="post" enctype="multipart/form-data" style="margin-top: 20px;">
     {% csrf_token %}
-    <input type="file" name="csv_file" required>
-    <button type="submit">Upload</button>
+    <div class="form-group">
+      <label for="csv_file">Choose CSV File:</label><br>
+      <input type="file" name="csv_file" id="csv_file" required accept=".csv">
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Upload</button>
   </form>
-  <p><a href="/">Back to Dashboard</a></p>
-</body>
-</html>
+
+  <div style="margin-top: 25px;">
+    <a href="{% url 'index' %}">⬅️ Back to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

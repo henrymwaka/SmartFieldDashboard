@@ -1,58 +1,79 @@
-{% extends "dashboard/base.html" %}
+{% extends "base.html" %}
 {% load filters %}
 
+{% block title %}Trait Reminder Dashboard | SmartField{% endblock %}
+
 {% block content %}
-<h2>📅 Trait Reminder Dashboard</h2>
-<table border="1" cellpadding="4" cellspacing="0">
-  <thead>
-    <tr>
-      <th>Plant ID</th>
-      {% for trait in trait_list %}
-        <th>{{ trait }}</th>
-      {% endfor %}
-    </tr>
-  </thead>
-  <tbody>
-    {% for plant_id in plant_ids %}
-      <tr>
-        <td>{{ plant_id }}</td>
-        {% for trait in trait_list %}
-          <td style="text-align:center;">
-            {{ plant_trait_map|get_item:plant_id|get_item:trait|default:"-" }}
-          </td>
+<div class="container">
+  <h2 style="text-align:center; margin-top: 20px;">📅 Trait Reminder Dashboard</h2>
+
+  <div style="overflow-x: auto; margin-top: 20px;">
+    <h3>🧬 Trait Status Matrix</h3>
+    <table border="1" cellpadding="4" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+      <thead style="background-color: #007BFF; color: white;">
+        <tr>
+          <th>Plant ID</th>
+          {% for trait in trait_list %}
+            <th>{{ trait }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for plant_id in plant_ids %}
+          <tr>
+            <td>{{ plant_id }}</td>
+            {% for trait in trait_list %}
+              <td style="text-align: center;">
+                {{ plant_trait_map|get_item:plant_id|get_item:trait|default:"-" }}
+              </td>
+            {% endfor %}
+          </tr>
         {% endfor %}
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
-<h2>Trait Reminders</h2>
-<p>
-  <a href="{% url 'export_trait_reminders_pdf' %}" class="btn btn-primary" target="_blank">📄 Export to PDF</a>
-</p>
+      </tbody>
+    </table>
+  </div>
 
-<table class="table" border="1" cellpadding="4" cellspacing="0" style="margin-top:20px;">
-  <thead>
-    <tr>
-      <th>Plot</th>
-      <th>Trait</th>
-      <th>Status</th>
-      <th>Expected Date</th>
-      <th>Actual Date</th>
-      <th>Note</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for reminder in trait_reminders %}
-    <tr>
-      <td>{{ reminder.plot }}</td>
-      <td>{{ reminder.trait }}</td>
-      <td>{{ reminder.status }}</td>
-      <td>{{ reminder.expected_date }}</td>
-      <td>{{ reminder.actual_date|default:"—" }}</td>
-      <td>{{ reminder.note }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+  <div style="margin-top: 40px;">
+    <h3>📋 Detailed Trait Reminders</h3>
+    <p>
+      <a href="{% url 'export_trait_reminders_pdf' %}" class="btn btn-success" target="_blank" style="
+        display: inline-block;
+        background-color: #28a745;
+        color: white;
+        padding: 8px 16px;
+        text-decoration: none;
+        border-radius: 4px;
+        font-weight: bold;">
+        📄 Export to PDF
+      </a>
+    </p>
 
+    <div style="overflow-x: auto;">
+      <table class="table" border="1" cellpadding="4" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+        <thead style="background-color: #343a40; color: white;">
+          <tr>
+            <th>Plot</th>
+            <th>Trait</th>
+            <th>Status</th>
+            <th>Expected Date</th>
+            <th>Actual Date</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for reminder in trait_reminders %}
+            <tr>
+              <td>{{ reminder.plot }}</td>
+              <td>{{ reminder.trait }}</td>
+              <td>{{ reminder.status }}</td>
+              <td>{{ reminder.expected_date }}</td>
+              <td>{{ reminder.actual_date|default:"—" }}</td>
+              <td>{{ reminder.note }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

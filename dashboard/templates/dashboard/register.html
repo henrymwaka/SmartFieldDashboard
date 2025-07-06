@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load form_tags %}
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="container mt-5" style="max-width: 450px;">
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h3 class="mb-4 text-center">📝 Create a SmartField Account</h3>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      {% if form.errors %}
+        <div class="alert alert-danger">
+          Please correct the errors below.
+        </div>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-3">
+          {{ form.username.label_tag }}
+          {{ form.username|add_class:"form-control" }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.first_name.label_tag }}
+          {{ form.first_name|add_class:"form-control" }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.last_name.label_tag }}
+          {{ form.last_name|add_class:"form-control" }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.email.label_tag }}
+          {{ form.email|add_class:"form-control" }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.password1.label_tag }}
+          {{ form.password1|add_class:"form-control" }}
+        </div>
+
+        <div class="mb-3">
+          {{ form.password2.label_tag }}
+          {{ form.password2|add_class:"form-control" }}
+        </div>
+
+        <button type="submit" class="btn btn-success w-100">✅ Register</button>
+      </form>
+
+      <p class="text-center mt-3 mb-2 small text-muted">
+        📧 A confirmation email will be sent to your address. <br>
+        Your account will be reviewed and activated by an admin after confirmation.
+      </p>
+
+      <p class="text-center mb-0">
+        Already have an account? <a href="{% url 'login' %}">Login here</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

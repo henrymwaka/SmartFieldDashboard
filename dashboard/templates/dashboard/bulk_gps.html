@@ -1,9 +1,15 @@
-{% extends "dashboard/base.html" %}
+{% extends "base.html" %}
+{% load form_tags %}
+
+{% block title %}Assign GPS Coordinates | SmartField{% endblock %}
+
 {% block content %}
-  <h2>Assign GPS Coordinates to Plant</h2>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Save</button>
-  </form>
+  <div class="container" style="max-width: 600px; margin: 0 auto;">
+    <h2 class="mb-4">📍 Assign GPS Coordinates to Plant</h2>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <button type="submit" class="btn btn-primary">💾 Save</button>
+    </form>
+  </div>
 {% endblock %}

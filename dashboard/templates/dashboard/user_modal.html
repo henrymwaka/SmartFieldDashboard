@@ -1,0 +1,46 @@
+<!-- dashboard/user_modal.html -->
+<div class="modal fade" id="userDetailModal" tabindex="-1" aria-labelledby="userDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content shadow">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="userDetailModalLabel">👤 Edit User Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="modal-user-form">
+          {% csrf_token %}
+          <input type="hidden" name="user_id" id="modal-user-id">
+          <div class="mb-3">
+            <label for="modal-username" class="form-label">Username</label>
+            <input type="text" class="form-control" name="username" id="modal-username">
+          </div>
+          <div class="mb-3">
+            <label for="modal-email" class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" id="modal-email">
+          </div>
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" name="is_active" id="modal-isactive">
+            <label for="modal-isactive" class="form-check-label">Active</label>
+          </div>
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" name="is_staff" id="modal-isstaff">
+            <label for="modal-isstaff" class="form-check-label">Staff</label>
+          </div>
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" name="is_superuser" id="modal-issuperuser">
+            <label for="modal-issuperuser" class="form-check-label">Superuser</label>
+          </div>
+          <div class="mb-2">
+            <strong>Joined:</strong> <span id="modal-joined"></span><br>
+            <strong>Last Login:</strong> <span id="modal-lastlogin"></span>
+          </div>
+        </form>
+        <div id="modal-message" class="mt-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="save-user-btn">💾 Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>

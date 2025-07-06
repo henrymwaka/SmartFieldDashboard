@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load filters %}
+
+{% block title %}Edit Traits | SmartField{% endblock %}
+
+{% block content %}
+<h2>✏️ Edit Trait Values</h2>
+
+<form method="post" action="{% url 'save_trait_edits' %}" id="bulkEditForm">
+  {% csrf_token %}
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Plant ID</th>
+        {% for trait in trait_names %}
+          <th>{{ trait }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for plant in plant_ids %}
+      <tr>
+        <td>{{ plant }}</td>
+        {% for trait in trait_names %}
+        <td>
+          <input type="text"
+                 name="edit_{{ plant }}_{{ trait }}"
+                 value="{{ trait_flags|get_item:plant|get_item:trait }}"
+                 style="width: 80px;">
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div style="margin-top: 20px;">
+    <button type="submit" class="btn btn-primary">💾 Save All Edits</button>
+  </div>
+</form>
+
+<script>
+  document.getElementById("bulkEditForm").onsubmit = async function (e) {
+    e.preventDefault();
+
+    const inputs = document.querySelectorAll("input[type='text']");
+    const edits = {};
+
+    inputs.forEach(input => {
+      const parts = input.name.split("_");
+      const plant = parts[1];
+      const trait = parts.slice(2).join("_");
+      const value = input.value.trim();
+
+      if (!edits[plant]) edits[plant] = {};
+      edits[plant][trait] = value;
+    });
+
+    const res = await fetch("{% url 'save_trait_edits' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token }}"
+      },
+      body: JSON.stringify({ edits })
+    });
+
+    const json = await res.json();
+    alert(json.status === "success" ? "✅ All changes saved!" : "❌ Failed: " + json.message);
+    if (json.status === "success") location.reload();
+  };
+</script>
+{% endblock %}

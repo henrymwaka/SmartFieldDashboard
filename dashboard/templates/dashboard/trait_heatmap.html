@@ -1,131 +1,83 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>SmartField: Trait Completion Heatmap</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f9f9f9;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    #controls {
-      max-width: 800px;
-      margin: auto;
-      margin-bottom: 20px;
-      text-align: center;
-    }
-    select {
-      padding: 8px 12px;
-      font-size: 16px;
-    }
-    #heatmapContainer {
-      width: 100%;
-      max-width: 1200px;
-      margin: auto;
-    }
-    canvas {
-      background: white;
-      border: 1px solid #ddd;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-  </style>
-</head>
-<body>
-  <h2>Trait Completion Heatmap</h2>
-  <div id="controls">
-    <label for="traitSelect">Select Trait:</label>
-    <select id="traitSelect"></select>
-  </div>
-  <div id="heatmapContainer">
-    <canvas id="traitHeatmap" height="800"></canvas>
-  </div>
+{% extends "base.html" %}
+{% block title %}Trait Heatmap | SmartField{% endblock %}
+{% block content %}
 
-  <script>
-    const headers = {{ headers|safe }};  // ["plant_id", "height", "chlorophyll", ...]
-    const data = {{ data|safe }};  // original row data
-    const traitFlags = {{ trait_flags|safe }};  // { "plant1": { "height": "✔️", ... }, ... }
+<h2 style="text-align:center; margin-bottom: 30px;">Trait Completion Heatmap</h2>
+<div id="controls" style="text-align:center; margin-bottom: 20px;">
+  <label for="traitSelect">Select Trait:</label>
+  <select id="traitSelect" style="padding: 8px 12px; font-size: 16px;"></select>
+</div>
+<div id="heatmapContainer" style="max-width: 1200px; margin: auto;">
+  <canvas id="traitHeatmap" height="800" style="
+    background: white;
+    border: 1px solid #ddd;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);"></canvas>
+</div>
 
-    const traits = headers.slice(1);
-    const plantIds = Object.keys(traitFlags);
-    const statusToValue = { "✔️": 3, "⏳": 2, "❌": 1, "🕓": 0 };
-    const statusToColor = { 0: '#ccc', 1: '#ff4d4d', 2: '#ffc107', 3: '#28a745' };
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const headers = {{ headers|safe }};
+  const data = {{ data|safe }};
+  const traitFlags = {{ trait_flags|safe }};
 
-    // Populate dropdown menu
-    const dropdown = document.getElementById("traitSelect");
-    traits.forEach(trait => {
-      const opt = document.createElement("option");
-      opt.value = trait;
-      opt.textContent = trait;
-      dropdown.appendChild(opt);
-    });
+  const traits = headers.slice(1);
+  const plantIds = Object.keys(traitFlags);
+  const statusToValue = { "✔️": 3, "⏳": 2, "❌": 1, "🕓": 0 };
+  const statusToColor = { 0: '#ccc', 1: '#ff4d4d', 2: '#ffc107', 3: '#28a745' };
 
-    // Initialize chart config
-    const ctx = document.getElementById('traitHeatmap').getContext('2d');
-    const config = {
-      type: 'bar',
-      data: {
-        labels: [],
-        datasets: []
-      },
-      options: {
-        indexAxis: 'y',
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const val = context.raw;
-                return {
-                  3: "✔️ Completed",
-                  2: "⏳ Due Soon",
-                  1: "❌ Overdue",
-                  0: "🕓 Too Early"
-                }[val];
-              }
-            }
-          }
-        },
-        scales: {
-          x: {
-            display: false,
-            max: 3
-          },
-          y: {
-            ticks: {
-              autoSkip: false
-            }
+  const dropdown = document.getElementById("traitSelect");
+  traits.forEach(trait => {
+    const opt = document.createElement("option");
+    opt.value = trait;
+    opt.textContent = trait;
+    dropdown.appendChild(opt);
+  });
+
+  const ctx = document.getElementById('traitHeatmap').getContext('2d');
+  const config = {
+    type: 'bar',
+    data: {
+      labels: [],
+      datasets: []
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => ({
+              3: "✔️ Completed",
+              2: "⏳ Due Soon",
+              1: "❌ Overdue",
+              0: "🕓 Too Early"
+            })[context.raw]
           }
         }
+      },
+      scales: {
+        x: { display: false, max: 3 },
+        y: { ticks: { autoSkip: false } }
       }
-    };
-
-    const chart = new Chart(ctx, config);
-
-    function updateChartForTrait(trait) {
-      chart.data.labels = plantIds;
-      chart.data.datasets = [{
-        data: plantIds.map(p => statusToValue[traitFlags[p]?.[trait] || "🕓"]),
-        backgroundColor: plantIds.map(p => statusToColor[statusToValue[traitFlags[p]?.[trait] || "🕓"]])
-      }];
-      chart.options.scales.y.labels = plantIds;
-      chart.update();
     }
+  };
+  const chart = new Chart(ctx, config);
 
-    // Initial trait
-    updateChartForTrait(traits[0]);
-    dropdown.value = traits[0];
+  function updateChartForTrait(trait) {
+    chart.data.labels = plantIds;
+    chart.data.datasets = [{
+      data: plantIds.map(p => statusToValue[traitFlags[p]?.[trait] || "🕓"]),
+      backgroundColor: plantIds.map(p => statusToColor[statusToValue[traitFlags[p]?.[trait] || "🕓"]])
+    }];
+    chart.update();
+  }
 
-    // Trait selection handler
-    dropdown.addEventListener("change", function () {
-      updateChartForTrait(this.value);
-    });
-  </script>
-</body>
-</html>
+  updateChartForTrait(traits[0]);
+  dropdown.value = traits[0];
+
+  dropdown.addEventListener("change", function () {
+    updateChartForTrait(this.value);
+  });
+</script>
+
+{% endblock %}

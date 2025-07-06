@@ -1,129 +1,108 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SmartField: GPS-Based Trial Map</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
-    h2 { text-align: center; margin: 10px 0; }
-    #map { height: 90vh; width: 100%; margin-top: 10px; }
-    .legend, .heatmap-legend {
-      background: white;
-      padding: 10px;
-      margin-left: 10px;
-      line-height: 1.6;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      font-size: 14px;
-    }
-    .trait-select {
-      margin: 10px;
-      padding: 5px;
-      font-size: 16px;
-    }
-  </style>
-</head>
-<body>
-  <h2>Field Data Visualization – GPS Map</h2>
+{% extends "base.html" %}
+{% block title %}Field Map | SmartField{% endblock %}
 
-  <div class="legend">
-    <strong>Status Legend:</strong><br>
-    <span style="color:green; font-weight:bold;">●</span> Completed<br>
-    <span style="color:orange; font-weight:bold;">●</span> Due Soon<br>
-    <span style="color:red; font-weight:bold;">●</span> Overdue<br>
-    <span style="color:gray; font-weight:bold;">●</span> Too Early<br>
-  </div>
+{% block content %}
+<h2>Field Data Visualization – GPS Map</h2>
 
-  <div class="heatmap-legend" id="heatmapLegend" style="display:none;">
-    <strong>Heatmap Legend:</strong><br>
-    <span style="color:#006837; font-weight:bold;">●</span> ≥ 90<br>
-    <span style="color:#31a354; font-weight:bold;">●</span> 70 – 89<br>
-    <span style="color:#78c679; font-weight:bold;">●</span> 50 – 69<br>
-    <span style="color:#c2e699; font-weight:bold;">●</span> 30 – 49<br>
-    <span style="color:#ffffcc; font-weight:bold;">●</span> &lt; 30
-  </div>
+<div class="legend">
+  <strong>Status Legend:</strong><br>
+  <span style="color:green; font-weight:bold;">●</span> Completed<br>
+  <span style="color:orange; font-weight:bold;">●</span> Due Soon<br>
+  <span style="color:red; font-weight:bold;">●</span> Overdue<br>
+  <span style="color:gray; font-weight:bold;">●</span> Too Early<br>
+</div>
 
-  <div style="margin: 10px;">
-    <label for="traitSelect">Heatmap Trait:</label>
-    <select id="traitSelect" class="trait-select">
-      <option value="">None</option>
-      <option value="Height">Height</option>
-      <option value="Chlorophyll">Chlorophyll</option>
-    </select>
-  </div>
+<div class="heatmap-legend" id="heatmapLegend" style="display:none;">
+  <strong>Heatmap Legend:</strong><br>
+  <span style="color:#006837; font-weight:bold;">●</span> ≥ 90<br>
+  <span style="color:#31a354; font-weight:bold;">●</span> 70 – 89<br>
+  <span style="color:#78c679; font-weight:bold;">●</span> 50 – 69<br>
+  <span style="color:#c2e699; font-weight:bold;">●</span> 30 – 49<br>
+  <span style="color:#ffffcc; font-weight:bold;">●</span> &lt; 30
+</div>
 
-  <div id="map"></div>
+<div style="margin: 10px;">
+  <label for="traitSelect">Heatmap Trait:</label>
+  <select id="traitSelect" class="trait-select">
+    <option value="">None</option>
+    <option value="Height">Height</option>
+    <option value="Chlorophyll">Chlorophyll</option>
+  </select>
+</div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const map = L.map('map').setView([0.345, 32.582], 17);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+<div id="map" style="height: 80vh;"></div>
 
-    const colorMap = {
-      'completed': 'green',
-      'due-soon': 'orange',
-      'overdue': 'red',
-      'too-early': 'gray'
-    };
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    let allMarkers = [];
+<script>
+  const map = L.map('map').setView([0.345, 32.582], 17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
 
-    function addMarkers(data, selectedTrait = '') {
-      allMarkers.forEach(marker => map.removeLayer(marker));
-      allMarkers = [];
+  const colorMap = {
+    'completed': 'green',
+    'due-soon': 'orange',
+    'overdue': 'red',
+    'too-early': 'gray'
+  };
 
-      data.plots.forEach(p => {
-        let radius = 8;
-        let fillColor = colorMap[p.status] || 'black';
+  let allMarkers = [];
 
-        if (selectedTrait && p.traits[selectedTrait.toLowerCase()]) {
-          const val = parseFloat(p.traits[selectedTrait.toLowerCase()]);
-          if (!isNaN(val)) {
-            fillColor = getColorByValue(val);
-            radius = 10;
-          }
+  function addMarkers(data, selectedTrait = '') {
+    allMarkers.forEach(marker => map.removeLayer(marker));
+    allMarkers = [];
+
+    data.plots.forEach(p => {
+      let radius = 8;
+      let fillColor = colorMap[p.status] || 'black';
+
+      if (selectedTrait && p.traits[selectedTrait.toLowerCase()]) {
+        const val = parseFloat(p.traits[selectedTrait.toLowerCase()]);
+        if (!isNaN(val)) {
+          fillColor = getColorByValue(val);
+          radius = 10;
         }
-
-        const marker = L.circleMarker([p.latitude, p.longitude], {
-          radius,
-          color: fillColor,
-          fillColor,
-          fillOpacity: 0.8
-        })
-        .bindPopup(`<b>${p.id}</b><br>Status: ${p.status}<br>
-                    ${selectedTrait ? selectedTrait + ': ' + (p.traits[selectedTrait.toLowerCase()] || 'N/A') : ''}`)
-        .addTo(map);
-
-        allMarkers.push(marker);
-      });
-    }
-
-    function getColorByValue(value) {
-      if (value >= 90) return '#006837';
-      if (value >= 70) return '#31a354';
-      if (value >= 50) return '#78c679';
-      if (value >= 30) return '#c2e699';
-      return '#ffffcc';
-    }
-
-    fetch('/api/plot-coordinates/')
-      .then(response => response.json())
-      .then(data => {
-        window.smartFieldData = data;
-        addMarkers(data);
-      });
-
-    document.getElementById('traitSelect').addEventListener('change', function () {
-      const selected = this.value;
-      const legend = document.getElementById('heatmapLegend');
-      legend.style.display = selected ? 'block' : 'none';
-      if (window.smartFieldData) {
-        addMarkers(window.smartFieldData, selected);
       }
+
+      const marker = L.circleMarker([p.latitude, p.longitude], {
+        radius,
+        color: fillColor,
+        fillColor,
+        fillOpacity: 0.8
+      })
+      .bindPopup(`<b>${p.id}</b><br>Status: ${p.status}<br>
+                  ${selectedTrait ? selectedTrait + ': ' + (p.traits[selectedTrait.toLowerCase()] || 'N/A') : ''}`)
+      .addTo(map);
+
+      allMarkers.push(marker);
     });
-  </script>
-</body>
-</html>
+  }
+
+  function getColorByValue(value) {
+    if (value >= 90) return '#006837';
+    if (value >= 70) return '#31a354';
+    if (value >= 50) return '#78c679';
+    if (value >= 30) return '#c2e699';
+    return '#ffffcc';
+  }
+
+  fetch('/api/plot-coordinates/')
+    .then(response => response.json())
+    .then(data => {
+      window.smartFieldData = data;
+      addMarkers(data);
+    });
+
+  document.getElementById('traitSelect').addEventListener('change', function () {
+    const selected = this.value;
+    const legend = document.getElementById('heatmapLegend');
+    legend.style.display = selected ? 'block' : 'none';
+    if (window.smartFieldData) {
+      addMarkers(window.smartFieldData, selected);
+    }
+  });
+</script>
+{% endblock %}

@@ -1,10 +1,51 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>SmartField: Trait Status Table</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- DataTables CSS -->
+{% extends "base.html" %}
+
+{% block title %}Trait Status Table | SmartField{% endblock %}
+
+{% block content %}
+  <div style="text-align: center; margin-bottom: 20px;">
+    <a href="{% url 'export_trait_pdf' %}" class="button" style="
+        display: inline-block;
+        background-color: #28a745;
+        color: white;
+        padding: 10px 20px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;">
+      📄 Download Trait PDF Report
+    </a>
+  </div>
+
+  <h2 style="text-align:center; margin-bottom: 20px;">Trait Status Table Per Plant</h2>
+
+  <table id="traitTable">
+    <thead>
+      <tr>
+        {% for col in headers %}
+          <th scope="col">{{ col }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in zipped_rows %}
+        <tr>
+          {% for col, cell in row %}
+            <td class="icon {{ cell|default:'' }}" title="{{ cell }}" data-label="{{ col }}">{{ cell }}</td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="legend" style="text-align: center; margin-top: 12px; font-size: 14px;">
+    <strong>Status Legend:</strong>
+    <span class="✔️">✔️ Completed</span>
+    <span class="⏳">⏳ Due Soon</span>
+    <span class="❌">❌ Overdue</span>
+    <span class="🕓">🕓 Too Early</span>
+  </div>
+
+  <!-- CSS -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
   <style>
@@ -12,10 +53,6 @@
       font-family: Arial, sans-serif;
       background-color: #f4f4f4;
       padding: 20px;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
     }
     table {
       width: 100%;
@@ -31,6 +68,9 @@
     th {
       background-color: #007BFF;
       color: white;
+      position: sticky;
+      top: 0;
+      z-index: 2;
     }
     tr:hover {
       background-color: #f1f1f1;
@@ -38,18 +78,11 @@
     .icon {
       font-size: 16px;
     }
-    .✔️ {
-      color: green;
-    }
-    .❌ {
-      color: red;
-    }
-    .⏳ {
-      color: orange;
-    }
-    .🕓 {
-      color: gray;
-    }
+    .✔️ { color: green; }
+    .❌ { color: red; }
+    .⏳ { color: orange; }
+    .🕓 { color: gray; }
+
     @media only screen and (max-width: 768px) {
       table, thead, tbody, th, td, tr {
         display: block;
@@ -58,6 +91,9 @@
         position: absolute;
         top: -9999px;
         left: -9999px;
+      }
+      table {
+        margin: 0 auto;
       }
       tr {
         margin-bottom: 10px;
@@ -74,47 +110,13 @@
         left: 10px;
         width: 45%;
         white-space: nowrap;
+        content: attr(data-label);
+        font-weight: bold;
       }
     }
   </style>
-</head>
-<body>
-<div style="text-align: center; margin-bottom: 20px;">
-  <a href="{% url 'export_trait_pdf' %}" class="button" style="
-      display: inline-block;
-      background-color: #28a745;
-      color: white;
-      padding: 10px 20px;
-      text-decoration: none;
-      border-radius: 5px;
-      font-weight: bold;
-    ">
-    📄 Download Trait PDF Report
-  </a>
-</div>
-  <h2>Trait Status Table Per Plant</h2>
-  <table id="traitTable">
-    <thead>
-      <tr>
-        {% for col in headers %}
-          <th>{{ col }}</th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in table_rows %}
-        {% if row|slice:"1:"|join:""|length > 0 %} {# show only rows with at least one trait #}
-        <tr>
-          {% for cell in row %}
-            <td class="icon {{ cell|default:'' }}">{{ cell }}</td>
-          {% endfor %}
-        </tr>
-        {% endif %}
-      {% endfor %}
-    </tbody>
-  </table>
 
-  <!-- jQuery and DataTables JS -->
+  <!-- JS -->
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
@@ -129,9 +131,14 @@
       $('#traitTable').DataTable({
         pageLength: 25,
         dom: 'Bfrtip',
-        buttons: ['copy', 'csv', 'excel', 'pdf', 'print']
+        buttons: [
+          { extend: 'copy', title: 'SmartField Trait Status' },
+          { extend: 'csv', title: 'SmartField Trait Status' },
+          { extend: 'excel', title: 'SmartField Trait Status' },
+          { extend: 'pdf', title: 'SmartField Trait Status' },
+          { extend: 'print', title: 'SmartField Trait Status' }
+        ]
       });
     });
   </script>
-</body>
-</html>
+{% endblock %}

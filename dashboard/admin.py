@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import TraitSchedule, PlantTraitData, FieldPlot
+from .models import TraitSchedule, PlantTraitData, FieldPlot, Trial, Germplasm
 
 @admin.register(TraitSchedule)
 class TraitScheduleAdmin(admin.ModelAdmin):
@@ -18,3 +18,13 @@ class FieldPlotAdmin(admin.ModelAdmin):
     list_display = ('plant_id', 'latitude', 'longitude', 'status')
     search_fields = ('plant_id',)
     list_filter = ('status',)
+
+@admin.register(Trial)
+class TrialAdmin(admin.ModelAdmin):
+    list_display = ('trialDbId', 'trialName', 'programName', 'startDate', 'endDate')
+    search_fields = ('trialDbId', 'trialName')
+
+@admin.register(Germplasm)
+class GermplasmAdmin(admin.ModelAdmin):
+    list_display = ('germplasmDbId', 'germplasmName', 'species', 'seedSource')
+    search_fields = ('germplasmDbId', 'germplasmName')

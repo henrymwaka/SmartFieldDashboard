@@ -1,0 +1,150 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}SmartField{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background-color: #f4f4f4;
+    }
+
+    .navbar {
+      background-color: #2c3e50;
+      overflow: hidden;
+      padding: 10px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .navbar-title {
+      font-weight: bold;
+      font-size: 20px;
+      color: white;
+      margin-right: auto;
+    }
+
+    .navbar a {
+      color: white;
+      text-decoration: none;
+      padding: 10px 15px;
+      margin-right: 5px;
+      border-radius: 4px;
+      transition: background-color 0.2s ease;
+    }
+
+    .navbar a:hover {
+      background-color: #1abc9c;
+    }
+
+    .navbar a.active {
+      background-color: #2980b9;
+      font-weight: bold;
+    }
+
+    .navbar-user {
+      color: #ecf0f1;
+      margin-left: auto;
+      font-size: 14px;
+    }
+
+    .container-box {
+      max-width: 1000px;
+      margin: 30px auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .messages {
+      margin-bottom: 20px;
+      padding: 12px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    .messages .success {
+      background-color: #dff0d8;
+      color: #3c763d;
+    }
+
+    .messages .error {
+      background-color: #f2dede;
+      color: #a94442;
+    }
+
+    @media (max-width: 768px) {
+      .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .navbar a {
+        padding: 8px 0;
+        margin-right: 0;
+      }
+
+      .navbar-user {
+        margin-top: 10px;
+        margin-left: 0;
+      }
+
+      .container-box {
+        margin: 15px;
+        padding: 20px;
+      }
+    }
+  </style>
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <div class="navbar">
+    <div class="navbar-title">🌱 SmartField</div>
+    <a href="{% url 'index' %}" class="{% if request.path == '/' %}active{% endif %}">🏠 Dashboard</a>
+    <a href="{% url 'upload_csv' %}" class="{% if 'upload-csv' in request.path %}active{% endif %}">⬆️ Upload Data</a>
+    <a href="{% url 'upload_schedule' %}" class="{% if 'upload-schedule' in request.path %}active{% endif %}">📅 Upload Schedule</a>
+    <a href="{% url 'trait_status_table' %}" class="{% if 'trait-status' in request.path %}active{% endif %}">📋 Trait Table</a>
+    <a href="{% url 'trait_reminder_dashboard' %}" class="{% if 'reminder' in request.path %}active{% endif %}">⏰ Reminder Dashboard</a>
+    <a href="{% url 'field_map' %}" class="{% if 'field-map' in request.path %}active{% endif %}">🗺️ GPS Map</a>
+    <a href="{% url 'trait_heatmap_view' %}" class="{% if 'heatmap' in request.path %}active{% endif %}">🌡️ Heatmap</a>
+    <a href="{% url 'edit_traits_view' %}" class="{% if 'edit-traits' in request.path %}active{% endif %}">📝 Snapshot & History</a>
+
+    <div class="navbar-user">
+      {% if request.user.is_authenticated %}
+        👤 {{ request.user.username }}
+
+        {% if request.user.is_staff or request.user.is_superuser %}
+          | <a href="{% url 'user_management' %}" class="{% if 'user-management' in request.path %}active{% endif %}" style="color:#ecf0f1;">👥 Manage Users</a>
+        {% endif %}
+
+        | <a href="{% url 'logout' %}" style="color:#ecf0f1;">Logout</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="container-box">
+      {% if messages %}
+        <div class="messages">
+          {% for message in messages %}
+            <div class="{{ message.tags }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  {% block extra_js %}{% endblock %}
+
+</body>
+</html>
