@@ -31,6 +31,9 @@ urlpatterns = [
     path('brapi/v2/studies/<str:studyDbId>', brapi_views.brapi_study_detail, name='brapi_study_detail'),
     path('brapi/v2/studies/<str:studyDbId>/observationunits', brapi_views.brapi_study_observationunits, name='brapi_study_observationunits'),
     path('brapi/v2/trials', brapi_views.brapi_trials, name='brapi-trials'),
+    path('brapi/v2/genotypes', brapi_views.brapi_genotypes, name='brapi_genotypes'),
+    path('brapi/v2/phenotypes', brapi_views.brapi_phenotypes, name='brapi_phenotypes'),
+    path('brapi/v2/studies-search', brapi_views.brapi_studies_search, name='brapi_studies_search'),
 
 
    

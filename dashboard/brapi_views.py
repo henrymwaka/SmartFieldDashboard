@@ -95,6 +95,62 @@ def brapi_studies(request):
         }
     })
 
+@api_view(['GET'])
+def brapi_genotypes(request):
+    return Response({
+        "metadata": {
+            "pagination": {
+                "pageSize": 0,
+                "currentPage": 0,
+                "totalCount": 0,
+                "totalPages": 0
+            },
+            "status": [],
+            "datafiles": []
+        },
+        "result": {
+            "data": []
+        }
+    })
+
+
+@api_view(['GET'])
+def brapi_phenotypes(request):
+    return Response({
+        "metadata": {
+            "pagination": {
+                "pageSize": 0,
+                "currentPage": 0,
+                "totalCount": 0,
+                "totalPages": 0
+            },
+            "status": [],
+            "datafiles": []
+        },
+        "result": {
+            "data": []
+        }
+    })
+
+
+@api_view(['POST'])
+def brapi_studies_search(request):
+    # Later: You can parse POST parameters to filter real studies
+    return Response({
+        "metadata": {
+            "pagination": {
+                "pageSize": 0,
+                "currentPage": 0,
+                "totalCount": 0,
+                "totalPages": 0
+            },
+            "status": [],
+            "datafiles": []
+        },
+        "result": {
+            "data": []
+        }
+    })
 
 @api_view(['GET'])
 def brapi_observationvariables(request):
