@@ -1,79 +1,37 @@
 # 🌿 SmartField Supervisor Dashboard
 
-The **SmartField Dashboard** is a Django-based web platform for managing and visualizing trait-based field data collected from agricultural research plots. It provides real-time insights into trait completion, plant statuses, GPS mapping, historical tracking, and trait-specific visualizations.
+The **SmartField Dashboard** is a Django-based web platform designed for agricultural researchers to manage and visualize trait-based field data collected from trials. It supports dynamic trait tracking, field mapping, GPS visualization, time-based reminders, and **BrAPI v2** API integration for interoperability with bioinformatics systems.
 
 ---
 
 ## 🚀 Features
 
-- ✅ Upload CSV files containing field data and trait schedule
-- 🧬 Visualize trait completion across all plants using a color-coded **heatmap**
-- 📊 View a trait status table with export options (CSV, Excel, PDF, Print)
-- 🖊️ Edit trait data inline via AJAX
-- 📈 Snapshot and view trait history per plant
-- 🌍 Visualize GPS-tagged plots on a field map
-- ⏳ Time-based reminder logic (based on planting date and expected schedule)
-- 🧠 Automatically assign status symbols:
-  - ✔️ = Complete
-  - ⏳ = Due soon
-  - ❌ = Overdue
-  - 🕓 = Too early
-- 📤 Export CSV summary reports
-- 🔐 Secure user login/logout system
-- 🔍 Search, sort, and paginate trait data using DataTables
+- ✅ Upload CSV files for both **trait data** and **trait schedule**
+- 🧬 Visualize trait completion using an interactive **color-coded heatmap**
+- 📊 Access **trait status tables** with export options (CSV, Excel, PDF, Print)
+- 🖊️ Edit trait values inline via **AJAX-enabled UI**
+- 📈 Snapshot and track **trait history** per plant
+- 🌍 View **GPS-mapped field plots** and coordinate visualizations
+- ⏳ Trait reminders based on **planting dates** and **expected timelines**
+- 🧠 Auto status detection:
+  - ✔️ Complete
+  - ⏳ Due soon
+  - ❌ Overdue
+  - 🕓 Too early
+- 📤 Export detailed **trait summary reports**
+- 🔐 Secure **user authentication** and user status management
+- 🔎 Searchable, sortable, and paginated tables using **DataTables**
+- 🌐 Full support for **BrAPI v2** including:
+  - `calls`, `trials`, `studies`, `observationunits`, `observations`
+  - `observationvariables`, `programs`, `germplasm`, `locations`, `commoncropnames`
+  - `studies/{studyDbId}/observationunits`, `germplasm/{germplasmDbId}`, etc.
 
 ---
 
 ## 📦 Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/SmartFieldDashboard.git
-   cd SmartFieldDashboard
-   
-   SmartFieldDashboard/
-├── dashboard/
-│   ├── templates/
-│   │   └── dashboard/
-│   │       ├── index.html
-│   │       ├── trait_status_table.html
-│   │       ├── trait_heatmap.html
-│   ├── views.py
-│   ├── urls.py
-│   └── models.py
-├── static/
-├── media/
-├── smartfield_dashboard/
-│   └── urls.py
-├── README.md
-└── requirements.txt
+Clone the repository:
 
-
----
-
-## 👥 Contributors
-
-Developed and maintained by **Henry Mwaka, PhD (Bioscience Engineering)**  
-GitHub: [@henrymwaka](https://github.com/henrymwaka)
-
----
-
-## 📄 License
-
-This project is licensed under the **Apache 2.0 License** – see the `LICENSE` file for details.
-
----
-
-## 📅 Project Status
-
-- 🚀 Core features implemented
-- 🔧 Additional visualizations in progress
-- 📅 Alpha release expected: Q4 2025
-
----
-
-## 🤝 Collaboration
-
-Pull requests and contributions are welcome!  
-Please open an issue to discuss improvements or bugs.
-
+```bash
+git clone https://github.com/henrymwaka/SmartFieldDashboard.git
+cd SmartFieldDashboard
