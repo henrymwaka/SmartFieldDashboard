@@ -1,24 +1,44 @@
 from rest_framework import serializers
 from .models import (
-    PlantTraitData,
     FieldPlot,
-    Trial,
     Germplasm,
+    PlantTraitData,
     Program,
-    TraitSchedule
+    Sample,
+    Season,
+    TraitSchedule,
+    Trial,
+    ObservationLevel,
+    Person,
+    ObservationMethod,
+    Image,
 )
 
-
+# ───────────────────────────────
+# Location & Program Serializers
+# ───────────────────────────────
 
 class LocationSerializer(serializers.Serializer):
     locationDbId = serializers.IntegerField()
     locationName = serializers.CharField()
     latitude = serializers.FloatField(allow_null=True)
     longitude = serializers.FloatField(allow_null=True)
+
+
 class ProgramSerializer(serializers.ModelSerializer):
     class Meta:
         model = Program
         fields = ['programDbId', 'programName', 'abbreviation', 'objective']
+
+
+# ───────────────────────────────
+# Observation & Plot Serializers
+# ───────────────────────────────
+
+class ObservationLevelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ObservationLevel
+        fields = ['observationLevel', 'levelName', 'levelOrder']
 
 
 class ObservationSerializer(serializers.ModelSerializer):
@@ -51,16 +71,45 @@ class ObservationUnitSerializer(serializers.ModelSerializer):
             }
         return None
 
+
+# ───────────────────────────────
+# Trial & Germplasm Serializers
+# ───────────────────────────────
+
 class TrialSerializer(serializers.ModelSerializer):
     class Meta:
         model = Trial
-        fields = ['trialDbId', 'trialName', 'programName', 'startDate', 'endDate', 'additionalInfo']
-        
+        fields = [
+            'trialDbId', 'trialName', 'programName',
+            'startDate', 'endDate', 'additionalInfo'
+        ]
+
+
 class GermplasmSerializer(serializers.ModelSerializer):
     class Meta:
         model = Germplasm
         fields = '__all__'
 
+
+# ───────────────────────────────
+# Sample & Season Serializers
+# ───────────────────────────────
+
+class SampleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Sample
+        fields = '__all__'
+
+
+class SeasonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Season
+        fields = '__all__'
+
+
+# ───────────────────────────────
+# Trait (Observation Variable)
+# ───────────────────────────────
 
 class ObservationVariableSerializer(serializers.Serializer):
     observationVariableDbId = serializers.CharField(source='id')
@@ -69,6 +118,7 @@ class ObservationVariableSerializer(serializers.Serializer):
     status = serializers.BooleanField(source='active')
 
     def to_representation(self, instance):
+        """BrAPI-compliant trait representation."""
         data = super().to_representation(instance)
         data.update({
             "observationVariableName": instance.trait,
@@ -89,3 +139,61 @@ class ObservationVariableSerializer(serializers.Serializer):
             }
         })
         return data
+
+
+# ───────────────────────────────
+# Person Serializer
+# ───────────────────────────────
+
+class PersonSerializer(serializers.ModelSerializer):
+    personDbId = serializers.CharField(source='id')
+
+    class Meta:
+        model = Person
+        fields = [
+            'personDbId', 'firstName', 'lastName', 'middleName',
+            'initials', 'name', 'email', 'phoneNumber',
+            'address', 'instituteName', 'organizationName', 'type'
+        ]
+
+
+# ───────────────────────────────
+# Observation Method Serializer
+# ───────────────────────────────
+
+class ObservationMethodSerializer(serializers.ModelSerializer):
+    observationMethodDbId = serializers.CharField(source='id')
+
+    class Meta:
+        model = ObservationMethod
+        fields = [
+            'observationMethodDbId', 'observationMethodName', 'methodClass',
+            'description', 'formula', 'bibliographicReference'
+        ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["ontologyReference"] = {
+            "ontologyDbId": "",
+            "ontologyName": "",
+            "version": "",
+            "documentationURL": ""
+        }
+        return data
+
+
+# ───────────────────────────────
+# Image Serializer
+# ───────────────────────────────
+
+class ImageSerializer(serializers.ModelSerializer):
+    imageDbId = serializers.CharField(source='id')
+
+    class Meta:
+        model = Image
+        fields = [
+            'imageDbId', 'imageFileName', 'imageName', 'description',
+            'copyright', 'fileSize', 'mimeType', 'imageFileURL',
+            'scale', 'timeStamp', 'takenBy', 'uploadedBy',
+            'observationUnitDbId', 'additionalInfo'
+        ]

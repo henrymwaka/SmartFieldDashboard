@@ -1,14 +1,16 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.core.paginator import Paginator
-from .models import FieldPlot, PlantTraitData, Trial, TraitSchedule, Germplasm, Program
+from .models import FieldPlot, PlantTraitData, Trial, TraitSchedule, Germplasm, Program, Person, ObservationMethod, Image
 from .serializers import (
     ObservationSerializer,
     ObservationUnitSerializer,
     TrialSerializer,
     ObservationVariableSerializer,
     GermplasmSerializer,
-    ProgramSerializer
+    ProgramSerializer,
+    PersonSerializer, ObservationMethodSerializer, ImageSerializer
+
 )
 
 
@@ -27,6 +29,9 @@ def brapi_calls(request):
         {"call": "studies/{studyDbId}/observationunits", "methods": ["GET"], "versions": ["2.0"]},
         {"call": "germplasm/{germplasmDbId}", "methods": ["GET"], "versions": ["2.0"]},
         {"call": "seasons", "methods": ["GET"], "versions": ["2.0"]},
+        {"call": "samples", "methods": ["GET"], "versions": ["2.0"]},
+        
+
 
     ]
     return Response({
@@ -95,6 +100,22 @@ def brapi_studies(request):
         "result": {
             "data": studies
         }
+    })
+
+@api_view(['GET'])
+def brapi_observationlevels(request):
+    levels = ObservationLevel.objects.all()
+    serializer = ObservationLevelSerializer(levels, many=True)
+    return Response({
+        "metadata": {
+            "pagination": {
+                "page": 0,
+                "pageSize": 100,
+                "totalCount": levels.count(),
+                "totalPages": 1
+            }
+        },
+        "result": {"data": serializer.data}
     })
 
 @api_view(['GET'])
@@ -396,6 +417,25 @@ def brapi_locations(request):
             "data": data
         }
     })
+@api_view(['GET'])
+def brapi_samples(request):
+    samples = Sample.objects.all()
+    serializer = SampleSerializer(samples, many=True)
+    return Response({
+        "metadata": {
+            "pagination": {
+                "pageSize": 1000,
+                "currentPage": 0,
+                "totalCount": samples.count(),
+                "totalPages": 1
+            },
+            "status": [],
+            "datafiles": []
+        },
+        "result": {
+            "data": serializer.data
+        }
+    })
 
 
 @api_view(['GET'])
@@ -417,6 +457,67 @@ def brapi_commoncropnames(request):
         }
     })
 
+@api_view(['GET'])
+def brapi_people(request):
+    people = Person.objects.all()
+    serializer = PersonSerializer(people, many=True)
+    return Response({
+        "metadata": {
+            "pagination": {
+                "pageSize": len(people),
+                "currentPage": 0,
+                "totalCount": len(people),
+                "totalPages": 1
+            },
+            "status": [],
+            "datafiles": []
+        },
+        "result": {
+            "data": serializer.data
+        }
+    })
+
+
+@api_view(['GET'])
+def brapi_observationmethods(request):
+    methods = ObservationMethod.objects.all()
+    serializer = ObservationMethodSerializer(methods, many=True)
+    return Response({
+        "metadata": {
+            "pagination": {
+                "pageSize": len(methods),
+                "currentPage": 0,
+                "totalCount": len(methods),
+                "totalPages": 1
+            },
+            "status": [],
+            "datafiles": []
+        },
+        "result": {
+            "data": serializer.data
+        }
+    })
+
+
+@api_view(['GET'])
+def brapi_images(request):
+    images = Image.objects.all()
+    serializer = ImageSerializer(images, many=True)
+    return Response({
+        "metadata": {
+            "pagination": {
+                "pageSize": len(images),
+                "currentPage": 0,
+                "totalCount": len(images),
+                "totalPages": 1
+            },
+            "status": [],
+            "datafiles": []
+        },
+        "result": {
+            "data": serializer.data
+        }
+    })
 
 @api_view(['GET'])
 def brapi_programs(request):

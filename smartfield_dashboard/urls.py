@@ -35,6 +35,14 @@ urlpatterns = [
     path('brapi/v2/phenotypes', brapi_views.brapi_phenotypes, name='brapi_phenotypes'),
     path('brapi/v2/studies-search', brapi_views.brapi_studies_search, name='brapi_studies_search'),
     path('brapi/v2/seasons', brapi_views.brapi_seasons, name='brapi_seasons'),
+    path('brapi/v2/samples', brapi_views.brapi_samples, name='brapi_samples'),
+    path('brapi/v2/observationlevels', brapi_views.brapi_observationlevels, name='brapi_observationlevels'),
+     path('brapi/v2/people', brapi_views.brapi_people, name='brapi_people'),
+    path('brapi/v2/observationmethods', brapi_views.brapi_observationmethods, name='brapi_observationmethods'),
+    path('brapi/v2/images', brapi_views.brapi_images, name='brapi_images'),
+
+    
+
   
       
     # User Management
