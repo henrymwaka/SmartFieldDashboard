@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 
+
 class TraitSchedule(models.Model):
     crop = models.CharField(max_length=100)
     trait = models.CharField(max_length=100)

@@ -791,3 +791,56 @@ def register(request):
         form = UserCreationForm()
     return render(request, 'dashboard/register.html', {'form': form})
     
+def test_brapi_api(request):
+    token_url = 'http://127.0.0.1:8000/o/token/'
+    client_id = 'YOUR_CLIENT_ID'
+    client_secret = 'YOUR_CLIENT_SECRET'
+    username = 'shaykins'
+    password = 'YOUR_PASSWORD'
+
+    data = {
+        'grant_type': 'password',
+        'username': username,
+        'password': password,
+        'client_id': client_id,
+        'client_secret': client_secret,
+    }
+
+    token_response = requests.post(token_url, data=data)
+    access_token = token_response.json()['access_token']
+
+    headers = {'Authorization': f'Bearer {access_token}'}
+    brapi_url = 'http://127.0.0.1:8000/brapi/v2/observationvariables'
+    api_response = requests.get(brapi_url, headers=headers)
+
+    return JsonResponse(api_response.json())
+from django.http import JsonResponse
+import requests
+
+def test_brapi_api(request):
+    token_url = 'http://127.0.0.1:8000/o/token/'
+    client_id = '1'
+    client_secret = 'dxzWBEsknGFy3Z0pNknrbOpwapjhwBfX6HzUhI3VpiQG46mYKsDBRSNHMeHO4D2mXFbeiRJDwMwtCf4yGM95HNmDFUBQLVw4cNBn2X9iDOkVaYP2Z2IBwFalYWBiOmZV'
+    username = 'shaykins'
+    password = 'Klaisy&20'
+
+    data = {
+        'grant_type': 'password',
+        'username': username,
+        'password': password,
+        'client_id': client_id,
+        'client_secret': client_secret,
+    }
+
+    token_response = requests.post(token_url, data=data)
+
+    if token_response.status_code != 200:
+        return JsonResponse({'error': 'Failed to get token', 'details': token_response.json()})
+
+    access_token = token_response.json().get('access_token')
+    headers = {'Authorization': f'Bearer {access_token}'}
+
+    brapi_url = 'http://127.0.0.1:8000/brapi/v2/observationvariables'
+    api_response = requests.get(brapi_url, headers=headers)
+
+    return JsonResponse(api_response.json(), safe=False)

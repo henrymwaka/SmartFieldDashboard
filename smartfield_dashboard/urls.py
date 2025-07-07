@@ -1,13 +1,11 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.views import LogoutView
-
+from dashboard.brapi_views import brapi_post_observations
 from dashboard import views  # general views (e.g., login, dashboard)
 from dashboard import brapi_views  # all BrAPI-related views
-
-
-
+from dashboard.brapi_views import brapi_post_samples
 
 urlpatterns = [
     # Admin and Auth
@@ -37,13 +35,14 @@ urlpatterns = [
     path('brapi/v2/seasons', brapi_views.brapi_seasons, name='brapi_seasons'),
     path('brapi/v2/samples', brapi_views.brapi_samples, name='brapi_samples'),
     path('brapi/v2/observationlevels', brapi_views.brapi_observationlevels, name='brapi_observationlevels'),
-     path('brapi/v2/people', brapi_views.brapi_people, name='brapi_people'),
+    path('brapi/v2/people', brapi_views.brapi_people, name='brapi_people'),
     path('brapi/v2/observationmethods', brapi_views.brapi_observationmethods, name='brapi_observationmethods'),
     path('brapi/v2/images', brapi_views.brapi_images, name='brapi_images'),
-
+    path('brapi/v2/observations', brapi_post_observations, name='brapi_post_observations'),
+    path('brapi/v2/samples', brapi_post_samples, name='brapi_post_samples'),
+    path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),  
+    path('test-brapi/', views.test_brapi_api, name='test_brapi'),
     
-
-  
       
     # User Management
     path('user-management/', views.user_management, name='user_management'),

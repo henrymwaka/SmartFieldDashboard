@@ -1,4 +1,14 @@
 from django.utils import timezone
+from django.db.models import Q
+
+def apply_dynamic_filters(queryset, query_params, field_mapping):
+    for param, field in field_mapping.items():
+        value = query_params.get(param)
+        if value:
+            filter_kwargs = {field: value}
+            queryset = queryset.filter(**filter_kwargs)
+    return queryset
+
 
 def calculate_trait_reminder_status(expected_date, actual_date):
     """

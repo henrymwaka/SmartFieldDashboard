@@ -1,7 +1,13 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.core.paginator import Paginator
-from .models import FieldPlot, PlantTraitData, Trial, TraitSchedule, Germplasm, Program, Person, ObservationMethod, Image
+from django.db.models import Q
+#from .utils import brapi_paginate  # assumes you have a pagination helper
+from .utils import apply_dynamic_filters
+from rest_framework import status
+import datetime
+from django.utils.dateparse import parse_datetime
+from .models import FieldPlot, PlantTraitData, Trial, TraitSchedule, Germplasm, Program, Person, ObservationMethod, Image, Sample
 from .serializers import (
     ObservationSerializer,
     ObservationUnitSerializer,
@@ -9,9 +15,13 @@ from .serializers import (
     ObservationVariableSerializer,
     GermplasmSerializer,
     ProgramSerializer,
-    PersonSerializer, ObservationMethodSerializer, ImageSerializer
-
+    PersonSerializer, ObservationMethodSerializer, ImageSerializer, SampleSerializer
 )
+
+@api_view(['POST'])
+def brapi_post_observations(request):
+    # Placeholder for now
+    return Response({"message": "POST observations not yet implemented."}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
@@ -417,25 +427,51 @@ def brapi_locations(request):
             "data": data
         }
     })
-@api_view(['GET'])
-def brapi_samples(request):
-    samples = Sample.objects.all()
-    serializer = SampleSerializer(samples, many=True)
+
+@api_view(['POST'])
+def brapi_post_samples(request):
+    samples = request.data.get("samples", [])
+
+    created = []
+    errors = []
+
+    for s in samples:
+        sample_id = s.get("sampleDbId")
+        observation_unit_id = s.get("observationUnitDbId")
+        taken_date = s.get("takenDateTime")
+        tissue_type = s.get("sampleType")
+        description = s.get("notes", "")
+        
+        try:
+            plot = FieldPlot.objects.get(plant_id=observation_unit_id)
+        except FieldPlot.DoesNotExist:
+            errors.append({"sampleDbId": sample_id, "error": "Observation unit not found"})
+            continue
+
+        try:
+            taken_at = datetime.datetime.fromisoformat(taken_date.replace("Z", "+00:00"))
+        except Exception:
+            errors.append({"sampleDbId": sample_id, "error": "Invalid timestamp format"})
+            continue
+
+        sample_obj = Sample.objects.create(
+            sampleDbId=sample_id,
+            observationUnit=plot,
+            takenDateTime=taken_at,
+            sampleType=tissue_type,
+            notes=description
+        )
+        created.append(str(sample_obj.id))
+
     return Response({
         "metadata": {
-            "pagination": {
-                "pageSize": 1000,
-                "currentPage": 0,
-                "totalCount": samples.count(),
-                "totalPages": 1
-            },
-            "status": [],
+            "status": [{"message": f"{len(created)} samples recorded", "code": "201"}] + errors,
             "datafiles": []
         },
         "result": {
-            "data": serializer.data
+            "data": created
         }
-    })
+    }, status=status.HTTP_201_CREATED if created else status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
@@ -566,3 +602,168 @@ def brapi_seasons(request):
             "data": data
         }
     })
+
+@api_view(['POST'])
+def brapi_post_observations(request):
+    observations = request.data.get("observations", [])
+
+    created = []
+    errors = []
+
+    for obs in observations:
+        unit_id = obs.get("observationUnitDbId")
+        trait_id = obs.get("observationVariableDbId")
+        value = obs.get("value")
+        timestamp = obs.get("observationTimeStamp")
+
+        try:
+            plot = FieldPlot.objects.get(plant_id=unit_id)
+        except FieldPlot.DoesNotExist:
+            errors.append({"unit_id": unit_id, "error": "Observation unit not found"})
+            continue
+
+        try:
+            trait = TraitSchedule.objects.get(id=trait_id)
+        except TraitSchedule.DoesNotExist:
+            errors.append({"trait_id": trait_id, "error": "Trait not found"})
+            continue
+
+        try:
+            dt_obj = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+        except Exception:
+            errors.append({"timestamp": timestamp, "error": "Invalid ISO format"})
+            continue
+
+        obs_entry = PlantTraitData.objects.create(
+            plant_id=unit_id,
+            trait=trait.trait,
+            value=value,
+            recorded_at=dt_obj
+        )
+        created.append(str(obs_entry.id))
+
+    return Response({
+        "metadata": {
+            "status": [{"message": f"{len(created)} observations recorded", "code": "201"}] + errors,
+            "datafiles": []
+        },
+        "result": {
+            "data": created
+        }
+    }, status=status.HTTP_201_CREATED if created else status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def brapi_post_samples(request):
+    samples_data = request.data.get("samples", [])
+    created = []
+    errors = []
+
+    for sample in samples_data:
+        try:
+            new_sample = Sample.objects.create(
+                sampleName=sample.get("sampleName"),
+                sampleDescription=sample.get("sampleDescription", ""),
+                studyDbId=sample.get("studyDbId"),
+                observationUnitDbId=sample.get("observationUnitDbId"),
+                takenDateTime=sample.get("takenDateTime", None),
+                sampleType=sample.get("sampleType", "TISSUE"),
+                tissueType=sample.get("tissueType", "LEAF"),
+                additionalInfo=sample.get("additionalInfo", {})
+            )
+            created.append(SampleSerializer(new_sample).data)
+        except Exception as e:
+            errors.append({"sample": sample.get("sampleName"), "error": str(e)})
+
+    return Response({
+        "metadata": {
+            "status": [{"message": f"{len(created)} samples created", "code": "201"}] + errors,
+            "datafiles": []
+        },
+        "result": {
+            "data": created
+        }
+    }, status=status.HTTP_201_CREATED if created else status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['GET'])
+def brapi_samples(request):
+    samples = Sample.objects.all()
+
+    # Define mapping from query param to model field
+    field_mapping = {
+        'sampleName': 'sampleName__icontains',
+        'germplasmDbId': 'germplasmDbId',
+        'studyDbId': 'studyDbId',
+        'takenBy': 'takenBy__icontains',
+        'sampleType': 'sampleType__icontains',
+    }
+
+    # Apply reusable dynamic filters
+    samples = apply_dynamic_filters(samples, request.GET, field_mapping)
+
+    # Apply date range filtering (sampleTimestamp)
+    start_date = request.GET.get('startDate')
+    end_date = request.GET.get('endDate')
+
+    if start_date:
+        parsed_start = parse_datetime(start_date)
+        if parsed_start:
+            samples = samples.filter(sampleTimestamp__gte=parsed_start)
+
+    if end_date:
+        parsed_end = parse_datetime(end_date)
+        if parsed_end:
+            samples = samples.filter(sampleTimestamp__lte=parsed_end)
+
+    # Paginate manually if brapi_paginate is not available
+    page = int(request.GET.get("page", 0))
+    page_size = int(request.GET.get("pageSize", 1000))
+    start = page * page_size
+    end = start + page_size
+    paginated_samples = samples[start:end]
+
+    serialized_data = SampleSerializer(paginated_samples, many=True).data
+
+    response_data = {
+        "metadata": {
+            "pagination": {
+                "pageSize": page_size,
+                "currentPage": page,
+                "totalCount": samples.count(),
+                "totalPages": (samples.count() + page_size - 1) // page_size
+            },
+            "status": [],
+            "datafiles": []
+        },
+        "result": {
+            "data": serialized_data
+        }
+    }
+
+    return Response(response_data)
+
+    # Apply reusable dynamic filters
+    samples = apply_dynamic_filters(samples, request.GET, field_mapping)
+
+    # Paginate manually if brapi_paginate is not available
+    page = int(request.GET.get("page", 0))
+    page_size = int(request.GET.get("pageSize", 1000))
+    start = page * page_size
+    end = start + page_size
+    paginated_samples = samples[start:end]
+
+    serializer = SampleSerializer(paginated_samples, many=True)
+    metadata = {
+        "pagination": {
+            "pageSize": page_size,
+            "currentPage": page,
+            "totalCount": samples.count(),
+            "totalPages": (samples.count() + page_size - 1) // page_size
+        },
+        "status": [],
+        "datafiles": []
+    }
+
+    return Response({
+        "metadata": metadata,
+        "result": {"data": serializer.data}
+    }, status=status.HTTP_200_OK)
