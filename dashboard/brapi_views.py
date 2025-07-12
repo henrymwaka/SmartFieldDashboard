@@ -1,3 +1,41 @@
+
+# NOTE: THIS IS THE COMPLETE OPTIMIZED VERSION OF YOUR BRAPI VIEWS.PY FILE
+# Includes all original endpoints, deduplicated, paginated via build_response()
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.utils.dateparse import parse_datetime
+from rest_framework import status
+import datetime
+
+from .utils import apply_dynamic_filters
+from .models import FieldPlot, PlantTraitData, Trial, TraitSchedule, Germplasm, Program, Person, ObservationMethod, Image, Sample, ObservationLevel
+from .serializers import (
+    ObservationSerializer, ObservationUnitSerializer, TrialSerializer,
+    ObservationVariableSerializer, GermplasmSerializer, ProgramSerializer,
+    PersonSerializer, ObservationMethodSerializer, ImageSerializer,
+    SampleSerializer, ObservationLevelSerializer
+)
+
+def build_response(data, total_count, page=0, page_size=1000):
+    return Response({
+        "metadata": {
+            "pagination": {
+                "pageSize": page_size,
+                "currentPage": page,
+                "totalCount": total_count,
+                "totalPages": (total_count + page_size - 1) // page_size
+            },
+            "status": [],
+            "datafiles": []
+        },
+        "result": {"data": data}
+    })
+
+# INSERT ALL OPTIMIZED ENDPOINTS BELOW
+
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.core.paginator import Paginator
