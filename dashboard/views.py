@@ -6,46 +6,49 @@
 # 1. Imports
 # -----------------------------------------------------------------------------
 
-# Built-in modules
-import csv, json, io, datetime, tempfile, traceback
+# --- Built-in modules ---
+import csv
+import datetime
+import io
+import json
+import tempfile
+import traceback
 from datetime import timedelta
 from io import TextIOWrapper
+from collections import defaultdict # Added for trait_heatmap_view
 
-# Django core
-from django.shortcuts import render, redirect
-from django.http import HttpResponse, JsonResponse, HttpResponseServerError
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_http_methods
+# --- Django core ---
 from django.contrib import messages
-from django.utils import timezone
-from django.utils.dateparse import parse_date
-from django.template.loader import render_to_string, get_template
-from django.core.mail import send_mail
 from django.contrib.auth import logout
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes, force_str
-from django.core.mail import EmailMessage
-from django.urls import reverse
-from .forms import CustomUserCreationForm
-from django.contrib.auth.decorators import user_passes_test
-from django.contrib.auth.models import User
-from django.db.models import Q
-from django.views.decorators.http import require_POST
+from django.core.mail import EmailMessage, send_mail
 from django.core.paginator import Paginator
+from django.db.models import Q, F, Value # F and Value added for trait_heatmap_view
+from django.db.models.functions import Coalesce # Coalesce added for trait_heatmap_view
+from django.http import HttpResponse, JsonResponse, HttpResponseServerError
+from django.shortcuts import render, redirect
+from django.template.loader import render_to_string, get_template
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.dateparse import parse_date
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.views.decorators.csrf import csrf_exempt    
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-
-# Third-party PDF tools
+# --- Third-party libraries ---
 from weasyprint import HTML
 from xhtml2pdf import pisa
+import requests # Added for test_brapi_api
 
-# Local app imports
-from .models import TraitSchedule, PlantTraitData, FieldPlot, PlantData, TraitTimeline
-from .forms import BulkGPSAssignmentForm
+# --- Local app imports ---
+from .forms import BulkGPSAssignmentForm, CustomUserCreationForm, TraitStatusUploadForm
+from .models import FieldPlot, PlantData, PlantTraitData, TraitSchedule, TraitTimeline
 from .utils import calculate_trait_reminder_status
+
 
 # ----------------------------------------------------------------------------
 # User Registration and Logout
@@ -114,7 +117,7 @@ def activate(request, uidb64, token):
 def user_management(request):
     users = User.objects.all().order_by('-date_joined')
     return render(request, 'dashboard/user_management.html', {'users': users})
-    
+
 @user_passes_test(lambda u: u.is_superuser)
 @login_required
 def user_management(request):
@@ -174,7 +177,35 @@ def update_user_from_modal(request):
         return JsonResponse({'success': False, 'message': 'User not found.'})
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
-    
+@login_required
+def upload_trait_status_csv(request):
+    if request.method == "POST":
+        form = TraitStatusUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            csv_file = request.FILES["csv_file"]
+            decoded_file = csv_file.read().decode("utf-8").splitlines()
+            reader = csv.DictReader(decoded_file)
+
+            for row in reader:
+                try:
+                    obj = PlantTraitData.objects.get(
+                        plant_id__plant_id=row["plant_id"],
+                        trait=row["trait"]
+                    )
+                    obj.actual_date = row.get("actual_date") or None
+                    obj.status_flag = row.get("status_flag", obj.status_flag)
+                    obj.note = row.get("note", obj.note)
+                    obj.save()
+                except PlantTraitData.DoesNotExist:
+                    continue  # Optionally log missing rows
+
+            messages.success(request, "Trait status CSV uploaded successfully.")
+            return redirect("trait_status_table")
+    else:
+        form = TraitStatusUploadForm()
+
+    return render(request, "dashboard/upload_trait_status.html", {"form": form})
+
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
 def user_management(request):
@@ -215,7 +246,6 @@ def update_user_status(request):
             messages.success(request, f"{count} user(s) deleted.")
 
     return redirect('user_management')
-    
 
 @login_required
 def upload_csv(request):
@@ -409,7 +439,28 @@ def save_trait_edits(request):
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
     return JsonResponse({"status": "invalid request"}, status=405)
+@login_required
+@csrf_exempt
+def upload_brapi_data_view(request):
+    if request.method == 'POST':
+        fieldmap_file = request.FILES.get('fieldmap')
+        traits_file = request.FILES.get('traits')
 
+        if not fieldmap_file or not traits_file:
+            messages.error(request, "Both files are required.")
+            return redirect('upload_brapi_data')
+
+        try:
+            fieldmap_content = fieldmap_file.read().decode('utf-8')
+            traits_content = traits_file.read().decode('utf-8')
+            process_csv_files(fieldmap_content, traits_content)
+            messages.success(request, "BrAPI data uploaded successfully.")
+        except Exception as e:
+            messages.error(request, f"Error processing files: {e}")
+
+        return redirect('upload_brapi_data')
+
+    return render(request, 'dashboard/upload_brapi_data.html')
 
 @csrf_exempt
 @login_required
@@ -436,7 +487,7 @@ def update_trait_value(request):
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
     return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
-    
+
 @login_required
 @require_http_methods(["GET"])
 def edit_traits_view(request):
@@ -561,17 +612,16 @@ def trait_status_table(request):
     data = request.session.get('cached_data')
     trait_flags = request.session.get('cached_trait_flags')
     headers = ['plant_id'] + [t.trait for t in TraitSchedule.objects.all()]
-    
+
     if not data or not trait_flags:
         return HttpResponse("No cached data found. Please upload trait data first.", status=400)
 
     table_rows = []
     for entry in data:
         pid = entry.get('plant_id')
-        row = [pid] + [trait_flags.get(pid, {}).get(trait, '') for trait in headers[1:]]
+        row = [pid] + [trait_flags.get(pid, {}).get(trait, '🕓') for trait in headers[1:]]
         table_rows.append(row)
 
-    # Zip headers with each row's values for safe data-label rendering
     zipped_rows = [zip(headers, row) for row in table_rows]
 
     return render(request, 'dashboard/trait_status_table.html', {
@@ -579,12 +629,40 @@ def trait_status_table(request):
         'zipped_rows': zipped_rows,
     })
 
+# ──────────────────────────────────────────────────────────────────────────────
+# 1️⃣  Trait-Heatmap View  (fully rewritten, syntax-error-free & optimised)
+# ──────────────────────────────────────────────────────────────────────────────
 @login_required
 def trait_heatmap_view(request):
-    data = request.session.get('cached_data', [])
-    trait_flags = request.session.get('cached_trait_flags', {})
-    headers = list(data[0].keys()) if data else []
-    return render(request, 'dashboard/trait_heatmap.html', {'headers': headers, 'data': data, 'trait_flags': trait_flags})
+    """
+    Build the {plant_id: {trait: flag}} map in a single DB hit, with the
+    fallback of 🕓 (Too Early) handled in SQL via Coalesce.
+    """
+    # Query once – annotate missing flags with the literal 🕓
+    records = (
+        PlantTraitData.objects
+        .values("plant_id", "trait")
+        .annotate(flag=Coalesce(F("status_flag"), Value("🕓")))
+    )
+
+    # Build nested dict and collect all trait names
+    trait_flags = defaultdict(dict)
+    trait_set   = set()
+    for rec in records:
+        pid, trait, flag = rec["plant_id"], rec["trait"], rec["flag"]
+        trait_flags[pid][trait] = flag
+        trait_set.add(trait)
+
+    headers = ["PlantID", *sorted(trait_set)]    # first column header + traits
+    # The JS template only needs headers and trait_flags, but we keep data for completeness
+    data = []
+
+    context = {
+        "headers": json.dumps(headers),
+        "data": json.dumps(data),
+        "trait_flags": json.dumps(trait_flags),
+    }
+    return render(request, "dashboard/trait_heatmap.html", context)
 
 # -----------------------------
 # 8. PLANTING DATES EDITORS
@@ -622,7 +700,7 @@ def plot_planting_dates(request):
 
     plots = FieldPlot.objects.all().order_by('plant_id')
     return render(request, 'dashboard/planting_dates.html', {'plots': plots})
-   
+
 # -----------------------------
 # 9. Reminder Dashboard View
 # -----------------------------
@@ -707,6 +785,26 @@ def export_trait_reminders_pdf(request):
         return HttpResponse(output.read(), content_type='application/pdf')
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# 2️⃣  Trait-Status PDF Export  (remove bad select_related on CharFields)
+# ──────────────────────────────────────────────────────────────────────────────
+@login_required
+def export_trait_status_pdf(request):
+    # CharFields are NOT relations → select_related('plant_id') would crash
+    trait_data = PlantTraitData.objects.all()
+
+    html_string = render_to_string(
+        "dashboard/trait_status_pdf.html",
+        {"data": trait_data},
+    )
+    pdf_file = HTML(string=html_string).write_pdf()
+
+    response = HttpResponse(pdf_file, content_type="application/pdf")
+    response["Content-Disposition"] = (
+        'attachment; filename="trait_status_report.pdf"'
+    )
+    return response
+
 @login_required
 def export_trait_pdf(request):
     traits = TraitTimeline.objects.values_list('trait', flat=True).distinct()
@@ -757,8 +855,6 @@ def download_snapshot_pdf(request, plant_id):
 # 11. Mail
 # -----------------------------
 
-import traceback
-
 @login_required
 def test_email(request):
     try:
@@ -775,11 +871,7 @@ def test_email(request):
         return HttpResponseServerError(f"Email failed: {str(e)}")
 def custom_logout(request):
     logout(request)
-    return redirect('login')  # or any page you want   
-def register(request):
-    return render(request, 'dashboard/register.html')
-
-
+    return redirect('login')  # or any page you want
 def register(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
@@ -790,32 +882,6 @@ def register(request):
     else:
         form = UserCreationForm()
     return render(request, 'dashboard/register.html', {'form': form})
-    
-def test_brapi_api(request):
-    token_url = 'http://127.0.0.1:8000/o/token/'
-    client_id = 'YOUR_CLIENT_ID'
-    client_secret = 'YOUR_CLIENT_SECRET'
-    username = 'shaykins'
-    password = 'YOUR_PASSWORD'
-
-    data = {
-        'grant_type': 'password',
-        'username': username,
-        'password': password,
-        'client_id': client_id,
-        'client_secret': client_secret,
-    }
-
-    token_response = requests.post(token_url, data=data)
-    access_token = token_response.json()['access_token']
-
-    headers = {'Authorization': f'Bearer {access_token}'}
-    brapi_url = 'http://127.0.0.1:8000/brapi/v2/observationvariables'
-    api_response = requests.get(brapi_url, headers=headers)
-
-    return JsonResponse(api_response.json())
-from django.http import JsonResponse
-import requests
 
 def test_brapi_api(request):
     token_url = 'http://127.0.0.1:8000/o/token/'
@@ -844,3 +910,23 @@ def test_brapi_api(request):
     api_response = requests.get(brapi_url, headers=headers)
 
     return JsonResponse(api_response.json(), safe=False)
+
+@csrf_exempt
+def update_actual_date_ajax(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            plant_id = data.get('plant_id')
+            trait = data.get('trait')
+            new_date = data.get('actual_date')
+
+            trait_entry = TraitTimeline.objects.get(plant_id_id=plant_id, trait=trait)
+            trait_entry.actual_date = datetime.strptime(new_date, "%Y-%m-%d").date()
+            trait_entry.save()
+
+            return JsonResponse({"message": "Actual date updated successfully"})
+        except TraitTimeline.DoesNotExist:
+            return JsonResponse({"error": "Trait entry not found"}, status=404)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+    return JsonResponse({"error": "Invalid request method"}, status=405)

@@ -36,9 +36,12 @@ class ProgramSerializer(serializers.ModelSerializer):
 # ───────────────────────────────
 
 class ObservationLevelSerializer(serializers.ModelSerializer):
+    levelName = serializers.CharField(source='level_name')
+    levelOrder = serializers.IntegerField(source='level_order')
+
     class Meta:
         model = ObservationLevel
-        fields = ['observationLevel', 'levelName', 'levelOrder']
+        fields = ['levelName', 'levelOrder']
 
 
 class ObservationSerializer(serializers.ModelSerializer):

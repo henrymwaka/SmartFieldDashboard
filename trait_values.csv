@@ -1,0 +1,5 @@
+plant_id,trait,value,status_flag
+P001,PlantHeight,120,✔️
+P002,LeafColor,Dark Green,⏳
+P003,FruitCount,15,❌
+P004,PlantHeight,135,🕓

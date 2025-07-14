@@ -1,0 +1,4 @@
+trait,method,class,scale,description
+PlantHeight,Ruler measurement,Morphological,cm,Height from base to top of plant
+LeafColor,Visual scale,Colorimetry,Color scale,Color of the youngest fully developed leaf
+FruitCount,Manual count,Yield,Count,Number of fruits per plant

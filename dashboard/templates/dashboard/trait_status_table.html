@@ -1,144 +1,129 @@
 {% extends "base.html" %}
-
-{% block title %}Trait Status Table | SmartField{% endblock %}
+{% load static %}
 
 {% block content %}
-  <div style="text-align: center; margin-bottom: 20px;">
-    <a href="{% url 'export_trait_pdf' %}" class="button" style="
-        display: inline-block;
-        background-color: #28a745;
-        color: white;
-        padding: 10px 20px;
-        text-decoration: none;
-        border-radius: 5px;
-        font-weight: bold;">
-      📄 Download Trait PDF Report
-    </a>
-  </div>
+<div class="container mt-4">
+    <h2>Trait Status Table</h2>
 
-  <h2 style="text-align:center; margin-bottom: 20px;">Trait Status Table Per Plant</h2>
+    <!-- CSV Upload Form -->
+    <div class="mb-3">
+        <form method="post" enctype="multipart/form-data" action="{% url 'exports:upload_trait_status_csv' %}">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary">Upload CSV</button>
+        </form>
+    </div>
 
-  <table id="traitTable">
-    <thead>
-      <tr>
-        {% for col in headers %}
-          <th scope="col">{{ col }}</th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for row in zipped_rows %}
-        <tr>
-          {% for col, cell in row %}
-            <td class="icon {{ cell|default:'' }}" title="{{ cell }}" data-label="{{ col }}">{{ cell }}</td>
-          {% endfor %}
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    <!-- PDF Export + Bulk Mark -->
+    <div class="mb-3">
+        <a href="{% url 'exports:export_trait_status_pdf' %}" class="btn btn-success">Download PDF</a>
+        <button class="btn btn-warning" onclick="bulkMarkMissing()">Mark All Blank as ❌</button>
+    </div>
 
-  <div class="legend" style="text-align: center; margin-top: 12px; font-size: 14px;">
-    <strong>Status Legend:</strong>
-    <span class="✔️">✔️ Completed</span>
-    <span class="⏳">⏳ Due Soon</span>
-    <span class="❌">❌ Overdue</span>
-    <span class="🕓">🕓 Too Early</span>
-  </div>
+    <!-- Legend -->
+    <div class="alert alert-info">
+        <strong>Legend:</strong>
+        ✔️ = Complete, ❌ = Incomplete, ⏳ = Due Soon, 🕓 = Too Early
+    </div>
 
-  <!-- CSS -->
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-  <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f4;
-      padding: 20px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: white;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    }
-    th, td {
-      padding: 10px;
-      text-align: center;
-      border: 1px solid #ccc;
-    }
-    th {
-      background-color: #007BFF;
-      color: white;
-      position: sticky;
-      top: 0;
-      z-index: 2;
-    }
-    tr:hover {
-      background-color: #f1f1f1;
-    }
-    .icon {
-      font-size: 16px;
-    }
-    .✔️ { color: green; }
-    .❌ { color: red; }
-    .⏳ { color: orange; }
-    .🕓 { color: gray; }
+    <!-- Trait Table -->
+    <table class="table table-bordered table-striped table-hover" id="trait-status-table">
+        <thead class="thead-dark">
+            <tr>
+                <th>Plot ID</th>
+                <th>Plant ID</th>
+                <th>Trait</th>
+                <th>Expected Date</th>
+                <th>Actual Date (Click to edit)</th>
+                <th>Status</th>
+                <th>Note</th>
+                <th>Last Updated</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for trait in trait_data %}
+            <tr class="trait-row">
+                <td>{{ trait.plant_id.plot.plot_id }}</td>
+                <td>{{ trait.plant_id.plant_id }}</td>
+                <td>{{ trait.trait }}</td>
+                <td>{{ trait.expected_date }}</td>
+                <td contenteditable="true"
+                    data-plant-id="{{ trait.plant_id.id }}"
+                    data-trait="{{ trait.trait }}"
+                    onblur="updateActualDate(this)">
+                    {{ trait.actual_date|default:"" }}
+                </td>
+                <td>{{ trait.status_flag }}</td>
+                <td>{{ trait.note }}</td>
+                <td>{{ trait.updated_on }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
-    @media only screen and (max-width: 768px) {
-      table, thead, tbody, th, td, tr {
-        display: block;
-      }
-      thead tr {
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-      }
-      table {
-        margin: 0 auto;
-      }
-      tr {
-        margin-bottom: 10px;
-      }
-      td {
-        border: none;
-        border-bottom: 1px solid #eee;
-        position: relative;
-        padding-left: 50%;
-      }
-      td:before {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        width: 45%;
-        white-space: nowrap;
-        content: attr(data-label);
-        font-weight: bold;
-      }
-    }
-  </style>
-
-  <!-- JS -->
-  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
-  <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-
-  <script>
-    $(document).ready(function () {
-      $('#traitTable').DataTable({
-        pageLength: 25,
-        dom: 'Bfrtip',
-        buttons: [
-          { extend: 'copy', title: 'SmartField Trait Status' },
-          { extend: 'csv', title: 'SmartField Trait Status' },
-          { extend: 'excel', title: 'SmartField Trait Status' },
-          { extend: 'pdf', title: 'SmartField Trait Status' },
-          { extend: 'print', title: 'SmartField Trait Status' }
-        ]
-      });
+<!-- JavaScript Section -->
+<script>
+function bulkMarkMissing() {
+    const rows = document.querySelectorAll('#trait-status-table tbody tr');
+    rows.forEach(row => {
+        const actualDateCell = row.cells[4];
+        if (!actualDateCell.textContent.trim()) {
+            actualDateCell.textContent = '❌';
+        }
     });
-  </script>
+    alert("All blank dates marked as ❌");
+}
+
+function updateActualDate(cell) {
+    const actual_date = cell.textContent.trim();
+    const plant_id = cell.getAttribute('data-plant-id');
+    const trait = cell.getAttribute('data-trait');
+
+    fetch("{% url 'update_actual_date_ajax' %}", {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            actual_date: actual_date,
+            plant_id: plant_id,
+            trait: trait
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("Update failed");
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log("Updated:", data);
+        cell.style.backgroundColor = "#d4edda";  // success green
+    })
+    .catch(error => {
+        console.error(error);
+        cell.style.backgroundColor = "#f8d7da";  // error red
+    });
+
+    setTimeout(() => { cell.style.backgroundColor = ""; }, 1200);
+}
+</script>
+
+<!-- Styles -->
+<style>
+    .container {
+        max-width: 95%;
+    }
+
+    td[contenteditable="true"] {
+        background-color: #fff8dc;
+        cursor: pointer;
+    }
+
+    td[contenteditable="true"]:hover {
+        border: 1px solid #ffc107;
+    }
+</style>
 {% endblock %}

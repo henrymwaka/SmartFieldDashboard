@@ -25,7 +25,8 @@ class CustomUserCreationForm(UserCreationForm):
         required=True,
         help_text='Required. Enter a valid email address.'
     )
-
+class TraitStatusUploadForm(forms.Form):
+    csv_file = forms.FileField(label="Upload CSV file")
     class Meta:
         model = User
         fields = (
