@@ -35,3 +35,23 @@ Clone the repository:
 ```bash
 git clone https://github.com/henrymwaka/SmartFieldDashboard.git
 cd SmartFieldDashboard
+---
+
+## 📜 Changelog
+
+### [modular-urls-v1] - 2025-07-13
+#### Added
+- Dedicated route files under `dashboard/urls/` for:
+  - `traits`
+  - `planting`
+  - `gps`
+  - `exports`
+  - `users`
+  - `mail`
+- Namespaced `include()` imports with clear separation between dashboard and API views
+
+#### Removed
+- Flat `urls.py` structure in favor of modular includes
+
+#### Fixed
+- All `NoReverseMatch` issues from template references by qualifying namespace routes
