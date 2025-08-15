@@ -1,0 +1,19 @@
+[Unit]
+Description=Gunicorn SmartFieldDashboard
+After=network.target
+
+[Service]
+User=shaykins
+Group=www-data
+WorkingDirectory=/home/shaykins/Projects/SmartFieldDashboard
+Environment="PATH=/home/shaykins/venvs/sfdash/bin"
+RuntimeDirectory=gunicorn
+ExecStartPre=/bin/mkdir -p /run/gunicorn
+ExecStartPre=/bin/chown shaykins:www-data /run/gunicorn
+ExecStart=/home/shaykins/venvs/sfdash/bin/gunicorn smartfield_dashboard.wsgi:application \
+  --workers 3 --bind unix:/run/gunicorn/sfdash.sock --timeout 120 --umask 0007
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
