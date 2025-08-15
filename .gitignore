@@ -37,3 +37,9 @@ Thumbs.db
 *.sqlite3
 __pycache__/
 *.pyc
+
+# local secrets & artifacts
+.env
+*.sqlite3
+__pycache__/
+*.pyc
