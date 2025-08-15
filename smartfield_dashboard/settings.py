@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     'oauth2_provider',
     'drf_yasg',
     'django_extensions',
+    'rangefilter'
 
 ]
 

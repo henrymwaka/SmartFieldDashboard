@@ -1,12 +1,19 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.contrib.auth import views as auth_views
+from django.http import JsonResponse
+from django.utils.timezone import now
+
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
-from dashboard import views
-
+from dashboard import views  # register, custom_logout, activate, index, etc.
+# -------------------------------------------------------------------
+# Inline health endpoint (avoids ImportError on dashboard.views)
+# -------------------------------------------------------------------
+def health_odkx(_request):
+    return JsonResponse({"ok": True, "app": "smartfield", "time": now().isoformat()})
 # -------------------------------------------------------------------
 # Swagger / API Schema Configuration
 # -------------------------------------------------------------------
@@ -39,7 +46,8 @@ urlpatterns = [
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='dashboard/password_reset_confirm.html'), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(template_name='dashboard/password_reset_complete.html'), name='password_reset_complete'),
 
-    # Swagger & ReDoc
+
+   # Swagger & ReDoc
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
