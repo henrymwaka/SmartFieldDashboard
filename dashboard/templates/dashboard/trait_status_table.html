@@ -7,7 +7,7 @@
 
     <!-- CSV Upload Form -->
     <div class="mb-3">
-        <form method="post" enctype="multipart/form-data" action="{% url 'exports:upload_trait_status_csv' %}">
+        <form method="post" enctype="multipart/form-data" action="{% url 'upload_trait_status_csv' %}">
             {% csrf_token %}
             {{ form.as_p }}
             <button type="submit" class="btn btn-primary">Upload CSV</button>
@@ -16,7 +16,7 @@
 
     <!-- PDF Export + Bulk Mark -->
     <div class="mb-3">
-        <a href="{% url 'exports:export_trait_status_pdf' %}" class="btn btn-success">Download PDF</a>
+        <a href="{% url 'export_trait_status_pdf' %}" class="btn btn-success">Download PDF</a>
         <button class="btn btn-warning" onclick="bulkMarkMissing()">Mark All Blank as ❌</button>
     </div>
 

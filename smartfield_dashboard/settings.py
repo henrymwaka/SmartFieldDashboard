@@ -5,7 +5,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = True
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
+ALLOWED_HOSTS = ['127.0.0.1','localhost','10.70.25.72']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -34,7 +34,6 @@ MIDDLEWARE = [
     'oauth2_provider.middleware.OAuth2TokenMiddleware',
 
 ]
-
 ROOT_URLCONF = 'smartfield_dashboard.urls'
 
 TEMPLATES = [
@@ -61,15 +60,11 @@ DATABASES = {
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
+STATIC_URL = '/smartfield/static/'
+STATIC_ROOT = '/var/www/sfdash/static'
+MEDIA_URL = '/smartfield/media/'
+MEDIA_ROOT = '/var/www/sfdash/media'
 
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/login/'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = config('EMAIL_HOST')
@@ -96,3 +91,8 @@ OAUTH2_PROVIDER = {
 }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+FORCE_SCRIPT_NAME = '/smartfield'
+CSRF_TRUSTED_ORIGINS = ['http://10.70.25.72:8080','https://10.70.25.72']
+LOGIN_URL = "/smartfield/login/"
+LOGIN_REDIRECT_URL = "/smartfield/"
+LOGOUT_REDIRECT_URL = "/smartfield/login/"

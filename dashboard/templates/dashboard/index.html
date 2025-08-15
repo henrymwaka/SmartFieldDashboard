@@ -7,11 +7,11 @@
 <h1>SmartField Supervisor Dashboard</h1>
 
 <div style="margin: 10px 0;">
-  <a href="{% url 'traits:trait_status_table' %}">🔍 View Trait Status Table</a> |
-  <a href="{% url 'gps:field_visualization' %}">🌾 Visualize Field Plots</a> |
-  <a href="{% url 'traits:trait_heatmap_view' %}">🧬 Trait Heatmap View</a> |
-  <a href="{% url 'planting:plot_planting_dates' %}">📅 Edit Planting Dates</a> |
-  <a href="{% url 'traits:trait_reminder_dashboard' %}">📅 Reminder Dashboard</a>
+  <a href="{% url 'trait_status_table' %}">🔍 View Trait Status Table</a> |
+  <a href="{% url 'field_map' %}">🌾 Visualize Field Plots</a> |
+  <a href="{% url 'trait_heatmap' %}">🧬 Trait Heatmap View</a> |
+  <a href="{% url 'plot_planting_dates' %}">📅 Edit Planting Dates</a> |
+  <a href="{% url 'trait_reminder_dashboard' %}">📅 Reminder Dashboard</a>
 </div>
 
 {% if user.is_authenticated %}
@@ -47,7 +47,7 @@
     </tr>
     {% for pid, flags in trait_flags.items %}
       <tr onclick="openModal('{{ pid }}')">
-        <td><a href="{% url 'traits:plant_snapshot' pid %}" style="text-decoration:none;">{{ pid }}</a></td>
+        <td><a href="{% url 'plant_snapshot' pid %}" style="text-decoration:none;">{{ pid }}</a></td>
         {% for trait, status in flags.items %}
           <td class="trait-col" data-trait="{{ trait }}">
             <span class="trait-box {{ status }}" title="Due: {{ trait_due_dates|get_item:pid|get_item:trait }}">

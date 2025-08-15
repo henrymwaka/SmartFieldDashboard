@@ -6,7 +6,7 @@
 {% block content %}
 <h2>✏️ Edit Trait Values</h2>
 
-<form method="post" action="{% url 'traits:save_trait_edits' %}" id="bulkEditForm">
+<form method="post" action="{% url 'save_trait_edits' %}" id="bulkEditForm">
   {% csrf_token %}
   <table border="1" cellpadding="6" cellspacing="0">
     <thead>
@@ -56,7 +56,7 @@
       edits[plant][trait] = value;
     });
 
-    const res = await fetch("{% url 'traits:save_trait_edits' %}", {
+    const res = await fetch("{% url 'save_trait_edits' %}", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
