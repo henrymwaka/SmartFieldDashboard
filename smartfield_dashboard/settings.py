@@ -122,3 +122,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # App is mounted under /smartfield
 FORCE_SCRIPT_NAME = '/smartfield'
+
+DATABASE_ROUTERS = ['smartfield_dashboard.routers.ODKXReadOnlyRouter']
