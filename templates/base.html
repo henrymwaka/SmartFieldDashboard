@@ -108,7 +108,7 @@
 
   <div class="navbar">
     <div class="navbar-title">🌱 SmartField</div>
-    <a href="{% url 'index' %}" class="{% if request.path == '/' %}active{% endif %}">🏠 Dashboard</a>
+    <a href="{% url 'dashboard:dashboard_home' %}" class="{% if 'dashboard' in request.path %}active{% endif %}">🏠 Dashboard</a>
     <a href="{% url 'exports:upload_csv' %}" class="{% if 'upload-csv' in request.path %}active{% endif %}">⬆️ Upload Data</a>
     <a href="{% url 'exports:upload_schedule' %}" class="{% if 'upload-schedule' in request.path %}active{% endif %}">📅 Upload Schedule</a>
     <a href="{% url 'traits:trait_status_table' %}" class="{% if 'trait-status' in request.path %}active{% endif %}">📋 Trait Table</a>

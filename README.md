@@ -140,3 +140,6 @@ PhD in Bioscience Engineering | NARO Uganda
 ## 📘 License
 
 This project is licensed under the **Apache License 2.0** – you're free to use, modify, and distribute with attribution.
+
+## Operations
+- **ODK-X End-to-End Architecture & Ops Runbook**: docs/runbooks/odkx-e2e-runbook.md
