@@ -127,6 +127,7 @@ SmartFieldDashboard/
 | Railway/VPS deployment        | ⏳ Pending    |
 
 ---
+See **[ODK-X End-to-End Runbook](docs/runbooks/odkx-e2e-runbook.md)** for setup and operations.
 
 ## 👨‍🔬 Developed By
 
