@@ -12,7 +12,7 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 # Hosts and origins
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
-    default='127.0.0.1,localhost,10.70.25.72,smartfield.reslab.dev',
+    default='smartfield.reslab.dev,127.0.0.1,localhost',
     cast=Csv()
 )
 
@@ -22,7 +22,6 @@ CSRF_TRUSTED_ORIGINS = config(
     default='http://10.70.25.72:8080,https://smartfield.reslab.dev',
     cast=Csv()
 )
-
 # ===============================================================
 # Installed apps and middleware
 # ===============================================================
